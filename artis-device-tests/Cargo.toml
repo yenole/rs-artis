@@ -1,0 +1,9 @@
+[package]
+name = "artis-device-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+artis = { path = "../artis" }
+artis-device = { path = "../artis-device" }
+tokio = { version = "1.40.0", features = ["full"] }

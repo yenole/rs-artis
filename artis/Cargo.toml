@@ -1,0 +1,12 @@
+[package]
+name = "artis"
+version = "0.1.0"
+authors = ["Yoruno xusir92@gamil.com"]
+license = "MIT"
+edition = "2021"
+description = "Artis is a SQL library"
+
+[dependencies]
+rbatis = "4.5.30"
+rbs = "4.5.18"
+serde = { version = "1.0.210", features = ["derive"] }
