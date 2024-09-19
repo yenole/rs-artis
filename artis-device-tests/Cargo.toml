@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 artis = { path = "../artis" }
 artis-device = { path = "../artis-device" }
+futures = "0.3.30"
 tokio = { version = "1.40.0", features = ["full"] }

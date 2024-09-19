@@ -17,10 +17,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[macro_export]
 macro_rules! rbox {
     ($v:expr) => {
-        crate::error::Error::from($v)
+        $crate::Error::from($v)
     };
     ($($arg:tt)*) => {
-        crate::error::Error::from(format!($($arg)*))
+        $crate::Error::from(format!($($arg)*))
     };
 }
 
@@ -49,4 +49,13 @@ macro_rules! rbv {
             }
         }
     }
+}
+
+#[macro_export]
+macro_rules! rtxblock {
+    ($k:ident,$v:block) => {
+        |$k: &$crate::ArtisTx| tokio::task::block_in_place(|| {
+            futures::executor::block_on(async $v)
+        })
+    };
 }

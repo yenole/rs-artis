@@ -1,8 +1,11 @@
-use std::{future::Future, sync::Arc};
+use std::future::Future;
 
 use rbatis::executor::RBatisTxExecutor;
 
-use crate::{rbox, IntoArtis};
+use crate::{
+    into_delete::IntoDelete, into_saving::IntoSaving, into_select::IntoSelect,
+    into_update::IntoUpdate, rbox, IntoArtis,
+};
 
 #[derive(Debug)]
 pub struct ArtisTx {
@@ -45,10 +48,7 @@ impl ArtisTx {
 }
 
 impl IntoArtis for ArtisTx {
-    fn list<T>(
-        &self,
-        i: impl crate::into_select::IntoSelect,
-    ) -> impl std::future::Future<Output = crate::Result<Vec<T>>>
+    fn list<T>(&self, i: impl IntoSelect) -> impl Future<Output = crate::Result<Vec<T>>>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -62,10 +62,7 @@ impl IntoArtis for ArtisTx {
         Box::pin(c)
     }
 
-    fn saving(
-        &self,
-        i: impl crate::into_saving::IntoSaving,
-    ) -> impl std::future::Future<Output = crate::Result<rbs::Value>> {
+    fn saving(&self, i: impl IntoSaving) -> impl Future<Output = crate::Result<rbs::Value>> {
         let c = async move {
             let (raw, args) = i.into_saving();
             if raw.is_empty() {
@@ -77,10 +74,7 @@ impl IntoArtis for ArtisTx {
         Box::pin(c)
     }
 
-    fn update(
-        &self,
-        i: impl crate::into_update::IntoUpdate,
-    ) -> impl std::future::Future<Output = crate::Result<u64>> {
+    fn update(&self, i: impl IntoUpdate) -> impl Future<Output = crate::Result<u64>> {
         let c = async move {
             let (raw, args) = i.into_update();
             if raw.is_empty() {
@@ -92,10 +86,7 @@ impl IntoArtis for ArtisTx {
         Box::pin(c)
     }
 
-    fn delete(
-        &self,
-        i: impl crate::into_delete::IntoDelete,
-    ) -> impl std::future::Future<Output = crate::Result<u64>> {
+    fn delete(&self, i: impl IntoDelete) -> impl Future<Output = crate::Result<u64>> {
         let c = async move {
             let (raw, args) = i.into_raw();
             if raw.is_empty() {

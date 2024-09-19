@@ -31,6 +31,8 @@ impl From<rbatis::Error> for Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "E")
+        match self {
+            Error::E(v) => write!(f, "{}", v),
+        }
     }
 }

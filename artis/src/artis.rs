@@ -1,4 +1,4 @@
-use std::{future::Future, rc::Rc, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use rbatis::RBatis;
 use serde::de::DeserializeOwned;
@@ -19,10 +19,16 @@ impl From<Arc<RBatis>> for Artis {
     }
 }
 
-pub trait IntoArtis {
+pub trait IntoArtis: Sync + Send {
     fn list<T>(&self, i: impl IntoSelect) -> impl Future<Output = Result<Vec<T>>>
     where
         T: DeserializeOwned;
+
+    // fn list<T, R, S>(&self, i: R) -> S
+    // where
+    //     R: IntoSelect,
+    //     S: Future<Output = Result<Vec<T>>>,
+    //     T: DeserializeOwned;
 
     fn saving(&self, i: impl IntoSaving) -> impl Future<Output = Result<rbs::Value>>;
 
@@ -90,20 +96,15 @@ impl Artis {
         Ok(ArtisTx::from(tx))
     }
 
-    pub async fn transaction<F, T>(&mut self, func: F) -> Result<()>
+    pub async fn transaction<F>(&self, func: F) -> Result<()>
     where
-        F: FnOnce(Rc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>>,
+        F: FnOnce(&ArtisTx) -> Result<()>,
     {
-        let rb = Rc::new(self.acquire().await?);
-        let result = func(Rc::clone(&rb))
-            .await
-            .map_err(|e| crate::Error::E("".into()));
-        // if let Ok(mut rb) = Rc::try_unwrap(rb) {
-        //     println!("0->>>>>>rb:{:#?}", rb);
-        //     return Ok(rb.commit().await?);
-        // } else {
-        Err(rbox!("数据异常"))
-        // }
+        let mut rb = self.acquire().await?;
+        if let Err(e) = func(&rb) {
+            rb.rollback().await?;
+            return Err(e);
+        }
+        rb.commit().await
     }
 }
