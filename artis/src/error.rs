@@ -17,18 +17,18 @@ impl From<String> for Error {
     }
 }
 
-impl From<rbs::Error> for Error {
-    fn from(value: rbs::Error) -> Self {
-        Self::from(value.to_string())
-    }
-}
-
-impl From<rbatis::Error> for Error {
-    fn from(value: rbatis::Error) -> Self {
-        Self::from(value.to_string())
-    }
-}
-
+// impl From<rbs::Error> for Error {
+//     fn from(value: rbs::Error) -> Self {
+//         Self::from(value.to_string())
+//     }
+// }
+//
+// impl From<rbatis::Error> for Error {
+//     fn from(value: rbatis::Error) -> Self {
+//         Self::from(value.to_string())
+//     }
+// }
+//
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {

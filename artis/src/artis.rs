@@ -1,110 +1,64 @@
-use std::{future::Future, sync::Arc};
+use std::u64;
+use std::{fmt::Debug, sync::Arc};
 
-use rbatis::RBatis;
 use serde::de::DeserializeOwned;
 
-use crate::{
-    artis_tx::ArtisTx, into_delete::IntoDelete, into_saving::IntoSaving, into_select::IntoSelect,
-    into_update::IntoUpdate, rbox, Result,
-};
+use crate::decode::decode;
+use crate::into_artis::IntoArtis;
+use crate::types::{BoxExecutor, ExecResult, RawType};
+use crate::IntoRaw;
+use crate::{BoxFuture, Result, Value};
 
-#[derive(Debug)]
+pub trait Executor: Debug + Send + Sync {
+    fn query(&self, raw: &'static str, args: Vec<Value>) -> BoxFuture<Result<Value>>;
+
+    fn exec(&self, raw: &'static str, args: Vec<Value>) -> BoxFuture<Result<ExecResult>>;
+}
+
+#[derive(Debug, Clone)]
 pub struct Artis {
-    pub rb: Arc<RBatis>,
+    c: Arc<Box<dyn Executor>>,
 }
 
-impl From<Arc<RBatis>> for Artis {
-    fn from(value: Arc<RBatis>) -> Self {
-        Self { rb: value }
+impl From<BoxExecutor> for Artis {
+    fn from(value: BoxExecutor) -> Self {
+        Self { c: Arc::new(value) }
     }
-}
-
-pub trait IntoArtis: Sync + Send {
-    fn list<T>(&self, i: impl IntoSelect) -> impl Future<Output = Result<Vec<T>>>
-    where
-        T: DeserializeOwned;
-
-    // fn list<T, R, S>(&self, i: R) -> S
-    // where
-    //     R: IntoSelect,
-    //     S: Future<Output = Result<Vec<T>>>,
-    //     T: DeserializeOwned;
-
-    fn saving(&self, i: impl IntoSaving) -> impl Future<Output = Result<rbs::Value>>;
-
-    fn update(&self, i: impl IntoUpdate) -> impl Future<Output = Result<u64>>;
-
-    fn delete(&self, i: impl IntoDelete) -> impl Future<Output = Result<u64>>;
 }
 
 impl IntoArtis for Artis {
-    fn list<T>(&self, i: impl IntoSelect) -> impl Future<Output = Result<Vec<T>>>
+    fn fetch<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
     where
         T: DeserializeOwned,
     {
-        let c = async move {
-            let (raw, list) = i.into_select();
-            if raw.is_empty() {
-                return Err(rbox!("数据异常"));
-            }
-            Ok(self.rb.query_decode::<Vec<T>>(raw, list).await?)
-        };
-        Box::pin(c)
+        let (raw, args) = i.into_raw(RawType::Fetch);
+        let wait = self.c.query(raw, args);
+        Box::pin(async { Ok(decode(wait.await?)?) })
     }
 
-    fn saving(&self, i: impl IntoSaving) -> impl Future<Output = Result<rbs::Value>> {
-        let c = async move {
-            let (raw, args) = i.into_saving();
-            if raw.is_empty() {
-                return Err(rbox!("数据异常"));
-            }
-            let rst = self.rb.exec(raw, args).await?;
-            Ok(rst.last_insert_id)
-        };
-        Box::pin(c)
-    }
-
-    fn update(&self, i: impl IntoUpdate) -> impl Future<Output = Result<u64>> {
-        let c = async move {
-            let (raw, args) = i.into_update();
-            if raw.is_empty() {
-                return Err(rbox!("数据异常"));
-            }
-            let rst = self.rb.exec(raw, args).await?;
-            Ok(rst.rows_affected)
-        };
-        Box::pin(c)
-    }
-
-    fn delete(&self, i: impl IntoDelete) -> impl Future<Output = Result<u64>> {
-        let c = async move {
-            let (raw, args) = i.into_raw();
-            if raw.is_empty() {
-                return Err(rbox!("数据异常"));
-            }
-            let rst = self.rb.exec(raw, args).await?;
-            Ok(rst.rows_affected)
-        };
-        Box::pin(c)
-    }
-}
-
-impl Artis {
-    pub async fn acquire(&self) -> Result<ArtisTx> {
-        let tx = self.rb.acquire().await?;
-        let tx = tx.begin().await?;
-        Ok(ArtisTx::from(tx))
-    }
-
-    pub async fn transaction<F>(&self, func: F) -> Result<()>
+    fn saving<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
     where
-        F: FnOnce(&ArtisTx) -> Result<()>,
+        T: DeserializeOwned,
     {
-        let mut rb = self.acquire().await?;
-        if let Err(e) = func(&rb) {
-            rb.rollback().await?;
-            return Err(e);
-        }
-        rb.commit().await
+        let (raw, args) = i.into_raw(RawType::Saving);
+        let wait = self.c.exec(raw, args);
+        Box::pin(async { Ok(decode(wait.await?.last_insert_id)?) })
+    }
+
+    fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
+        let (raw, args) = i.into_raw(RawType::Update);
+        let wait = self.c.exec(raw, args);
+        Box::pin(async { Ok(wait.await?.rows_affected) })
+    }
+
+    fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
+        let (raw, args) = i.into_raw(RawType::Delete);
+        let wait = self.c.exec(raw, args);
+        Box::pin(async { Ok(wait.await?.rows_affected) })
+    }
+
+    fn exec(&self, raw: &'static str, args: crate::types::Args) -> BoxFuture<Result<ExecResult>> {
+        let wait = self.c.exec(raw, args);
+        Box::pin(async { Ok(wait.await?) })
     }
 }

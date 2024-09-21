@@ -6,5 +6,9 @@ edition = "2021"
 [dependencies]
 artis = { path = "../artis" }
 artis-device = { path = "../artis-device" }
-futures = "0.3.30"
 tokio = { version = "1.40.0", features = ["full"] }
+rbatis = "4.5.21"
+rbdc = "4.5.30"
+rbs = "4.5.18"
+serde = { version = "1.0.210", features = ["derive"] }
+rbdc-sqlite = "4.5.5"

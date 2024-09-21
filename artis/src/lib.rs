@@ -1,40 +1,34 @@
 mod artis;
-mod artis_tx;
+mod decode;
 mod error;
-mod into_delete;
-mod into_saving;
-mod into_select;
-mod into_update;
-mod into_where;
+mod feature;
+mod into_artis;
+mod into_raw;
+mod types;
 
-pub use artis::Artis;
-pub use artis::IntoArtis;
-pub use artis_tx::ArtisTx;
+pub use artis::{Artis, Executor};
 pub use error::Error;
+pub use feature::rbatis::Value;
+pub use into_artis::IntoArtis;
+pub use into_raw::{IntoRaw, Raw};
+pub use types::{BoxFuture, ExecResult, RawType};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[macro_export]
-macro_rules! rbox {
-    ($v:expr) => {
-        $crate::Error::from($v)
-    };
-    ($($arg:tt)*) => {
-        $crate::Error::from(format!($($arg)*))
-    };
-}
-
-#[macro_export]
 macro_rules! raw {
     ($($arg:tt)*) => {
-        Box::leak(format!($($arg)*).into_boxed_str())
+       format!($($arg)*)
     }
 }
 
 #[macro_export]
 macro_rules! rbv {
+    ($v:expr) => {
+        rbs::to_value!($v)
+    };
     ($($k:tt: $v:expr),* $(,)?) => {
-        rbs::value_map!($($k:$v ,)*)
+        rbs::Value::Map(rbs::value_map!($($k:$v ,)*))
     };
 
     ($tt:expr,$($k:tt: $v:expr),* $(,)?) => {
@@ -43,19 +37,10 @@ macro_rules! rbv {
             let extend = rbs::value_map!($($k:$v ,)*);
             if let rbs::Value::Map(mut m) = v {
                 extend.into_iter().for_each(|(k, v)| {m.insert(k, v);});
-                m
+                rbs::Value::Map(m)
             } else {
-                rbs::value_map!($($k:$v ,)*)
+               rbs::Value::Map(rbs::value_map!($($k:$v ,)*))
             }
         }
     }
-}
-
-#[macro_export]
-macro_rules! rtxblock {
-    ($k:ident,$v:block) => {
-        |$k: &$crate::ArtisTx| tokio::task::block_in_place(|| {
-            futures::executor::block_on(async $v)
-        })
-    };
 }
