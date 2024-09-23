@@ -1,17 +1,17 @@
 mod artis;
+mod artis_tx;
 mod decode;
 mod error;
 mod feature;
-mod into_artis;
 mod into_raw;
 mod types;
 
 pub use artis::{Artis, Executor};
+pub use artis_tx::ArtisTx;
 pub use error::Error;
-pub use feature::rbatis::Value;
-pub use into_artis::IntoArtis;
+pub use feature::Value;
 pub use into_raw::{IntoRaw, Raw};
-pub use types::{BoxFuture, ExecResult, RawType};
+pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

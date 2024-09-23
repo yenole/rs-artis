@@ -1,51 +1,42 @@
-use std::future::Future;
-use std::u64;
-use std::{fmt::Debug, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use serde::de::DeserializeOwned;
 
-use crate::decode::decode;
-use crate::types::{Args, ExecResult, IntoArtis, RawType};
-use crate::ArtisTx;
-use crate::IntoRaw;
-use crate::{BoxFuture, Result, Value};
+use crate::{
+    decode::decode, types::Args, BoxFuture, ExecResult, Executor, IntoArtis, IntoRaw, RawType,
+    Result,
+};
 
-pub trait Executor: Debug + Send + Sync {
-    fn query(&self, raw: &'static str, args: Args) -> BoxFuture<Result<Value>>;
-
-    fn exec(&self, raw: &'static str, args: Args) -> BoxFuture<Result<ExecResult>>;
-}
-pub trait ChunkExecutor: Executor {
-    fn begin(&self) -> BoxFuture<Result<ArtisTx>>;
+pub trait TxExecutor: Executor {
+    fn commit(&self) -> BoxFuture<Result<()>>;
+    fn rollback(&self) -> BoxFuture<Result<()>>;
 }
 
-#[derive(Debug, Clone)]
-pub struct Artis {
-    c: Arc<Box<dyn ChunkExecutor>>,
+#[derive(Debug)]
+pub struct ArtisTx {
+    c: Arc<Box<dyn TxExecutor>>,
 }
 
-impl From<Box<dyn ChunkExecutor>> for Artis {
-    fn from(value: Box<dyn ChunkExecutor>) -> Self {
+impl From<Box<dyn TxExecutor>> for ArtisTx {
+    fn from(value: Box<dyn TxExecutor>) -> Self {
         Self { c: Arc::new(value) }
     }
 }
 
-impl Artis {
-    pub async fn begin(&self) -> Result<ArtisTx> {
-        Ok(self.c.begin().await?)
-    }
-
-    pub async fn chunk<F, T>(&self, func: F) -> Result<()>
+impl ArtisTx {
+    pub async fn chunk<T>(&self, func: T) -> Result<()>
     where
-        F: FnOnce(Arc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>> + Send,
+        T: Future<Output = Result<()>>,
     {
-        let rb = Arc::new(self.c.begin().await?);
-        rb.chunk(func(Arc::clone(&rb))).await
+        if let Err(v) = func.await {
+            self.c.rollback().await?;
+            return Err(v);
+        }
+        self.c.commit().await
     }
 }
 
-impl IntoArtis for Artis {
+impl IntoArtis for ArtisTx {
     fn fetch<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
     where
         T: DeserializeOwned,
@@ -76,7 +67,7 @@ impl IntoArtis for Artis {
         Box::pin(async { Ok(wait.await?.rows_affected) })
     }
 
-    fn exec(&self, raw: &'static str, args: crate::types::Args) -> BoxFuture<Result<ExecResult>> {
+    fn exec(&self, raw: &'static str, args: Args) -> BoxFuture<Result<ExecResult>> {
         let wait = self.c.exec(raw, args);
         Box::pin(async { Ok(wait.await?) })
     }

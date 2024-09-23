@@ -1,7 +1,5 @@
-use serde::Serialize;
-
 use crate::{
-    raw, rbv,
+    raw,
     types::{Args, Columns, RawType},
     Value,
 };
@@ -16,6 +14,7 @@ enum Props {
     Model(crate::Value),
     Limit((u32, u32)),
     Where((String, Vec<crate::Value>)),
+    Group(String),
     Order(String),
     Select(Vec<String>),
 }
@@ -39,35 +38,40 @@ impl Raw {
         self
     }
 
-    pub fn where_(mut self, v: &'static str, args: Vec<crate::Value>) -> Self {
-        self.inner[2] = Props::Where((v.into(), args));
-        self
-    }
-
     pub fn select(mut self, v: Vec<&'static str>) -> Self {
         self.inner[1] = Props::Select(v.iter().map(|v| v.to_string()).collect());
         self
     }
 
+    pub fn where_(mut self, v: &'static str, args: Vec<crate::Value>) -> Self {
+        self.inner[2] = Props::Where((v.into(), args));
+        self
+    }
+
+    pub fn group(mut self, v: &'static str) -> Self {
+        self.inner[3] = Props::Group(v.into());
+        self
+    }
+
     pub fn order(mut self, v: &'static str) -> Self {
-        self.inner[3] = Props::Order(v.into());
+        self.inner[4] = Props::Order(v.into());
         self
     }
 
     pub fn limit(mut self, v: u32) -> Self {
-        if let Props::Limit((_, o)) = self.inner[3] {
-            self.inner[4] = Props::Limit((v, o));
+        if let Props::Limit((_, o)) = self.inner[4] {
+            self.inner[5] = Props::Limit((v, o));
         } else {
-            self.inner[4] = Props::Limit((v, 0));
+            self.inner[5] = Props::Limit((v, 0));
         }
         self
     }
 
     pub fn offset(mut self, v: u32) -> Self {
-        if let Props::Limit((l, _)) = self.inner[3] {
-            self.inner[4] = Props::Limit((l, v));
+        if let Props::Limit((l, _)) = self.inner[5] {
+            self.inner[5] = Props::Limit((l, v));
         } else {
-            self.inner[4] = Props::Limit((0, v));
+            self.inner[5] = Props::Limit((0, v));
         }
         self
     }
@@ -172,9 +176,14 @@ impl IntoRaw for Raw {
                     }
                 }
             }
-            Props::Order(o) => {
+            Props::Group(c) => {
                 if v.is_fetch() {
-                    raw.push_str(&raw!(" ORDER BY {}", o));
+                    raw.push_str(&raw!(" GROUP BY {}", c));
+                }
+            }
+            Props::Order(c) => {
+                if v.is_fetch() {
+                    raw.push_str(&raw!(" ORDER BY {}", c));
                 }
             }
             Props::Limit((l, o)) => {
@@ -194,39 +203,134 @@ impl IntoRaw for Raw {
 
 impl IntoRaw for String {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.as_str()).into_raw(v)
+        Raw::table(self).into_raw(v)
     }
 }
 
-impl<T> IntoRaw for (&'static str, T)
-where
-    T: Serialize,
-{
+impl IntoRaw for (&'static str, i32) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0).model(rbv! {&self.1,}).into_raw(v)
+        Raw::table(self.0).limit(self.1 as u32).into_raw(v)
     }
 }
 
-impl<T> IntoRaw for (&'static str, T, &'static str)
-where
-    T: Serialize,
-{
+impl IntoRaw for (&'static str, (i32, i32)) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
         Raw::table(self.0)
-            .model(rbv! {&self.1,})
-            .where_(self.2, vec![])
+            .limit(self.1 .0 as u32)
+            .offset(self.1 .1 as u32)
             .into_raw(v)
     }
 }
 
-impl<T> IntoRaw for (&'static str, T, Vec<&'static str>)
-where
-    T: Serialize,
-{
+impl IntoRaw for (&'static str, &'static str, i32) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
         Raw::table(self.0)
-            .model(rbv! {&self.1,})
-            .select(self.2.clone())
+            .order(self.1)
+            .limit(self.2 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, &'static str, (i32, i32)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .order(self.1)
+            .limit(self.2 .0 as u32)
+            .offset(self.2 .1 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0).model(self.1.clone()).into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value, i32) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .model(self.1.clone())
+            .limit(self.2 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value, (i32, i32)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .model(self.1.clone())
+            .limit(self.2 .0 as u32)
+            .offset(self.2 .0 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value, &'static str, i32) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .model(self.1.clone())
+            .order(self.2)
+            .limit(self.3 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value, &'static str, (i32, i32)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .model(self.1.clone())
+            .order(self.2)
+            .limit(self.3 .0 as u32)
+            .offset(self.3 .0 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args), i32) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .limit(self.2 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args), (i32, i32)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .limit(self.2 .0 as u32)
+            .offset(self.2 .1 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args), &'static str, i32) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .order(self.2)
+            .limit(self.3 as u32)
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args), &'static str, (i32, i32)) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .order(self.2)
+            .limit(self.3 .0 as u32)
+            .offset(self.3 .1 as u32)
             .into_raw(v)
     }
 }

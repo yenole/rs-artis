@@ -2,43 +2,28 @@ use std::sync::Arc;
 
 use rbatis::RBatis;
 
-use crate::{types::BoxExecutor, BoxFuture, ExecResult, Executor, Result};
+use crate::{artis::ChunkExecutor, Artis, BoxFuture, ExecResult, Executor, Result, Value};
 
-pub type Value = rbs::Value;
-
-impl From<rbs::Error> for crate::Error {
-    fn from(value: rbs::Error) -> Self {
-        Self::from(value.to_string())
-    }
-}
-
-impl From<rbatis::Error> for crate::Error {
-    fn from(value: rbatis::Error) -> Self {
-        Self::from(value.to_string())
-    }
-}
+type BoxChunkExecutor = Box<dyn ChunkExecutor>;
 
 #[derive(Debug)]
-pub struct WrapRBatis {
-    rb: Arc<Box<RBatis>>,
+pub struct InnerRBatis {
+    rb: Arc<RBatis>,
 }
 
-impl From<WrapRBatis> for crate::Artis {
-    fn from(value: WrapRBatis) -> Self {
-        (Box::new(value) as BoxExecutor).into()
+impl From<Arc<RBatis>> for Artis {
+    fn from(value: Arc<RBatis>) -> Self {
+        (Box::new(InnerRBatis { rb: value }) as BoxChunkExecutor).into()
     }
 }
 
 impl From<RBatis> for crate::Artis {
     fn from(value: RBatis) -> Self {
-        WrapRBatis {
-            rb: Arc::new(Box::new(value)),
-        }
-        .into()
+        Arc::new(value).into()
     }
 }
 
-impl Executor for WrapRBatis {
+impl Executor for InnerRBatis {
     fn query(&self, raw: &'static str, args: Vec<Value>) -> BoxFuture<Result<Value>> {
         let rb = Arc::clone(&self.rb);
         Box::pin(async move { Ok(rb.query(raw, args).await?) })
@@ -53,5 +38,12 @@ impl Executor for WrapRBatis {
                 last_insert_id: rst.last_insert_id,
             })
         })
+    }
+}
+
+impl ChunkExecutor for InnerRBatis {
+    fn begin(&self) -> BoxFuture<Result<crate::ArtisTx>> {
+        let rb = Arc::clone(&self.rb);
+        Box::pin(async move { Ok(rb.acquire_begin().await?.into()) })
     }
 }
