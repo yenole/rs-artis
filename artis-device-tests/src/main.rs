@@ -1,8 +1,38 @@
-use artis::{rbv, Artis, IntoRaw, Result};
-use rbdc_sqlite::SqliteDriver;
+use artis::{
+    migrator::{migrator::ArtisMigrator, ColumeMeta, IndexMeta, MysqlMigrator, TableMeta},
+    rbv, Artis, IntoRaw, Result,
+};
+use artis_device::Artis;
+use rbdc_mysql::MysqlDriver;
+// use rbdc_sqlite::SqliteDriver;
 use serde::{Deserialize, Serialize};
 
-const LINK: &'static str = "./dist/sql.db";
+#[derive(Debug, Artis)]
+pub struct User {
+    #[artis(type = "BIGINT", NOT_NULL, PRIMARY)]
+    pub id: Option<u64>,
+    #[artis(type = "TEXT", NOT_NULL, UNIQUE)]
+    pub name: String,
+    #[artis(default = 10, comment = "age")]
+    pub age: i32,
+    #[artis(type = "JSON", INDEX)]
+    pub list: Vec<i32>,
+}
+
+impl ArtisMigrator for User {
+    fn migrator() -> TableMeta {
+        TableMeta {
+            name: "persons".into(),
+            primary: "id".into(),
+            columes: vec![
+                // ("id", "BIGINT", false, "", "").into(),
+                // ("name", "VARCHAR(255)", true, "'Jack'", "").into(),
+                // ("age", ":String", true, "18", "").into(),
+            ],
+            indexs: vec![IndexMeta::Index("age".into())],
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Person {
@@ -16,111 +46,58 @@ pub struct Address {
     pub name: String,
 }
 
-#[tokio::main]
-async fn main() {
-    let rb = rbatis::RBatis::new();
-    let _ = rb.link(SqliteDriver {}, LINK).await;
+const LINK: &'static str = "mysql://root:root@127.0.0.1:32306/artis";
+// const LINK: &'static str = "./dist/sql.db";
 
-    let rb: Artis = rb.into();
+async fn acuipe() -> Result<Artis> {
+    let rb = rbatis::RBatis::new();
+    let _ = rb.link(MysqlDriver {}, LINK).await;
+    Ok(rb.into())
+}
+
+async fn into_raw() -> Result<()> {
+    let rb: Artis = acuipe().await?;
     let _ = rb;
     let person = Person {
         id: None,
         name: "Tom".into(),
     };
-    let c: Result<()> = async move {
-        let raw = "persons";
-        println!("raw:{:?}", raw.to_string().into_raw(artis::RawType::Fetch));
-        let raw = ("persons", 1);
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", "id DESC", (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", rbv! {&person,});
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", rbv! {&person,}, 1);
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", rbv! {&person,}, (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", rbv! {&person,}, "id DESC", (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", ("id = ?", vec![rbv!(3)]));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", ("id = ?", vec![rbv!(3)]), 1);
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", ("id = ?", vec![rbv!(3)]), (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        let raw = ("persons", ("id = ?", vec![rbv!(3)]), "id DESC", (1, 2));
-        println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = "persons";
+    println!("raw:{:?}", raw.to_string().into_raw(artis::RawType::Fetch));
+    let raw = ("persons", 1);
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", "id DESC", (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", rbv! {&person,});
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", rbv! {&person,}, 1);
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", rbv! {&person,}, (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", rbv! {&person,}, "id DESC", (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", ("id = ?", vec![rbv!(3)]));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", ("id = ?", vec![rbv!(3)]), 1);
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", ("id = ?", vec![rbv!(3)]), (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    let raw = ("persons", ("id = ?", vec![rbv!(3)]), "id DESC", (1, 2));
+    println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
+    Ok(())
+}
 
-        // // let raw = Raw::table("persons")
-        // //     .where_("id >= ?", vec![rbv!(6)])
-        // //     // .select("id,name")
-        // //     .select(vec!["id"])
-        // //     .order("id DESC");
-        // let raw = "persions";
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        //
-        // let person = Person {
-        //     id: None,
-        //     name: "TOM".into(),
-        // };
-        // // let raw = ("persons", rbv! {&person,}, vec!["id", "age"]);
-        // // println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        // // let props = rbv! {&person,};
-        // // let raw = Raw::table("persons")
-        // //     .where_("id = ?", vec![rbv!(3)])
-        // //     .model(props)
-        // //     .select(vec!["id"]);
-        // // println!("raw:{:?}", raw.into_raw(artis::RawType::Saving));
-        // let raw = ("persons", rbv! {&person,});
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Saving));
-        // let rst = rb
-        //     .chunk(|rb| async move {
-        //         let last_id: u64 = rb.saving(&raw).await?;
-        //         println!("->>>list:{:?}", last_id);
-        //         // Err("xixi".into())
-        //         Ok(())
-        //     })
-        //     .await;
-        // println!("rst:{:?}", rst);
-        // let raw = "persons";
-        // let list: Vec<Person> = rb.fetch(&raw).await?;
-        // println!("list:{:#?}", list);
-        // let (rb) = rb.begin().await?;
-        // let ok = rb
-        //     .chunk(async {
-        //         let last_id: u64 = rb.saving(&raw).await?;
-        //         println!("->>>list:{:?}", last_id);
-        //         Err("xixi".into())
-        //     })
-        //     .await?;
+async fn into_migrator() -> Result<()> {
+    let rb = acuipe().await?;
+    let metas: Vec<_> = vec![User::migrator()];
+    rb.auto_migrate(&MysqlMigrator {}, metas).await?;
+    Ok(())
+}
 
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Saving));
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Saving));
-        // let last_id: u64 = rb.saving(&raw).await?;
-        // println!("_>>>>last_id:{}", last_id);
-
-        // let raw = (
-        //     "address",
-        //     rbv! {&Address{id:"12".into(),name:"Tom".into()},},
-        // );
-        // let last_id: String = rb.saving(&raw).await?;
-        // println!("_>>>>last_id:{}", last_id);
-
-        // let raw = ("persons", rbv! {&person,}, "id");
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Update));
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Delete));
-        //
-        // let raw = Raw::table("persons");
-        // let raw = raw.limit(1);
-        // println!("raw:{:?}", raw.into_raw(artis::RawType::Fetch));
-        // let list: Vec<Person> = rb.fetch(&raw).await?;
-        // println!("list:{:?}", list);
-        //
-        // println!("->>>>{:?}", rbv!(1));
-        Ok(())
-    }
-    .await;
-    println!("{:?} ", c);
+#[tokio::main]
+async fn main() {
+    println!("into_sqlite:{:?}", into_migrator().await);
+    // println!("into_raw:{:?}", into_raw().await);
 }

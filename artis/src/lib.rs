@@ -6,12 +6,16 @@ mod feature;
 mod into_raw;
 mod types;
 
+pub mod migrator;
+
 pub use artis::{Artis, Executor};
 pub use artis_tx::ArtisTx;
 pub use error::Error;
 pub use feature::Value;
 pub use into_raw::{IntoRaw, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
+
+// pub use driver::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -20,6 +24,17 @@ macro_rules! raw {
     ($($arg:tt)*) => {
        format!($($arg)*)
     }
+}
+
+#[macro_export]
+macro_rules! map {
+    {$($k:tt: $v:expr),* $(,)?} => {
+        {
+        let mut map = std::collections::HashMap::new();
+        $(map.insert($k, $v);)*
+        map
+        }
+    };
 }
 
 #[macro_export]

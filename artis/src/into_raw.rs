@@ -206,6 +206,11 @@ impl IntoRaw for String {
         Raw::table(self).into_raw(v)
     }
 }
+impl IntoRaw for (&'static str, &'static str) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0).order(self.1).into_raw(v)
+    }
+}
 
 impl IntoRaw for (&'static str, i32) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
@@ -244,6 +249,15 @@ impl IntoRaw for (&'static str, &'static str, (i32, i32)) {
 impl IntoRaw for (&'static str, Value) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
         Raw::table(self.0).model(self.1.clone()).into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, Value, &'static str) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .model(self.1.clone())
+            .order(self.2)
+            .into_raw(v)
     }
 }
 
@@ -291,6 +305,15 @@ impl IntoRaw for (&'static str, (&'static str, Args)) {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
         Raw::table(self.0)
             .where_(self.1 .0, self.1 .1.clone())
+            .into_raw(v)
+    }
+}
+
+impl IntoRaw for (&'static str, (&'static str, Args), &'static str) {
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        Raw::table(self.0)
+            .where_(self.1 .0, self.1 .1.clone())
+            .order(self.2)
             .into_raw(v)
     }
 }
