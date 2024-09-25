@@ -19,15 +19,13 @@ impl From<RBatisTxExecutor> for crate::ArtisTx {
 }
 
 impl Executor for InnerRBatisTx {
-    fn query(&self, raw: &'static str, args: Args) -> BoxFuture<Result<Value>> {
-        let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.query(raw, args).await?) })
+    fn query(&self, raw: String, args: Args) -> BoxFuture<Result<Value>> {
+        Box::pin(async move { Ok(self.rb.query(&raw, args).await?) })
     }
 
-    fn exec(&self, raw: &'static str, values: Args) -> BoxFuture<Result<ExecResult>> {
-        let rb = Arc::clone(&self.rb);
+    fn exec(&self, raw: String, values: Args) -> BoxFuture<Result<ExecResult>> {
         Box::pin(async move {
-            let rst = rb.exec(raw, values).await?;
+            let rst = self.rb.exec(&raw, values).await?;
             Ok(ExecResult {
                 rows_affected: rst.rows_affected,
                 last_insert_id: rst.last_insert_id,
@@ -37,12 +35,10 @@ impl Executor for InnerRBatisTx {
 }
 impl TxExecutor for InnerRBatisTx {
     fn commit(&self) -> crate::BoxFuture<crate::Result<()>> {
-        let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.conn.lock().await.commit().await?) })
+        Box::pin(async move { Ok(self.rb.conn.lock().await.commit().await?) })
     }
 
     fn rollback(&self) -> crate::BoxFuture<crate::Result<()>> {
-        let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.conn.lock().await.rollback().await?) })
+        Box::pin(async move { Ok(self.rb.conn.lock().await.rollback().await?) })
     }
 }

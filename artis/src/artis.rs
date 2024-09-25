@@ -11,9 +11,9 @@ use crate::IntoRaw;
 use crate::{BoxFuture, Result, Value};
 
 pub trait Executor: Debug + Send + Sync {
-    fn query(&self, raw: &'static str, args: Args) -> BoxFuture<Result<Value>>;
+    fn query(&self, raw: String, args: Args) -> BoxFuture<Result<Value>>;
 
-    fn exec(&self, raw: &'static str, args: Args) -> BoxFuture<Result<ExecResult>>;
+    fn exec(&self, raw: String, args: Args) -> BoxFuture<Result<ExecResult>>;
 }
 pub trait ChunkExecutor: Executor {
     fn begin(&self) -> BoxFuture<Result<ArtisTx>>;
@@ -51,7 +51,7 @@ impl IntoArtis for Artis {
         T: DeserializeOwned,
     {
         let (raw, args) = i.into_raw(RawType::Fetch);
-        let wait = self.c.query(raw, args);
+        let wait = self.c.query(raw.into(), args);
         Box::pin(async { Ok(decode(wait.await?)?) })
     }
 
@@ -60,24 +60,24 @@ impl IntoArtis for Artis {
         T: DeserializeOwned,
     {
         let (raw, args) = i.into_raw(RawType::Saving);
-        let wait = self.c.exec(raw, args);
+        let wait = self.c.exec(raw.into(), args);
         Box::pin(async { Ok(decode(wait.await?.last_insert_id)?) })
     }
 
     fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
         let (raw, args) = i.into_raw(RawType::Update);
-        let wait = self.c.exec(raw, args);
+        let wait = self.c.exec(raw.into(), args);
         Box::pin(async { Ok(wait.await?.rows_affected) })
     }
 
     fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
         let (raw, args) = i.into_raw(RawType::Delete);
-        let wait = self.c.exec(raw, args);
+        let wait = self.c.exec(raw.into(), args);
         Box::pin(async { Ok(wait.await?.rows_affected) })
     }
 
-    fn exec(&self, raw: &'static str, args: crate::types::Args) -> BoxFuture<Result<ExecResult>> {
-        let wait = self.c.exec(raw, args);
+    fn exec(&self, raw: &str, args: crate::types::Args) -> BoxFuture<Result<ExecResult>> {
+        let wait = self.c.exec(raw.into(), args);
         Box::pin(async { Ok(wait.await?) })
     }
 }

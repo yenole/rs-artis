@@ -21,7 +21,7 @@ pub trait IntoArtis: Debug + Send + Sync {
 
     fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>>;
 
-    fn exec(&self, raw: &'static str, args: Args) -> BoxFuture<Result<ExecResult>>;
+    fn exec(&self, raw: &str, args: Args) -> BoxFuture<Result<ExecResult>>;
 }
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rbatis::RBatis;
+use rbatis::{rbatis, RBatis};
 
 use crate::{artis::ChunkExecutor, Artis, BoxFuture, ExecResult, Executor, Result, Value};
 
@@ -24,15 +24,15 @@ impl From<RBatis> for crate::Artis {
 }
 
 impl Executor for InnerRBatis {
-    fn query(&self, raw: &'static str, args: Vec<Value>) -> BoxFuture<Result<Value>> {
+    fn query(&self, raw: String, args: Vec<Value>) -> BoxFuture<Result<Value>> {
         let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.query(raw, args).await?) })
+        Box::pin(async move { Ok(rb.query(&raw, args).await?) })
     }
 
-    fn exec(&self, raw: &'static str, values: Vec<Value>) -> BoxFuture<Result<ExecResult>> {
+    fn exec(&self, raw: String, values: Vec<Value>) -> BoxFuture<Result<ExecResult>> {
         let rb = Arc::clone(&self.rb);
         Box::pin(async move {
-            let rst = rb.exec(raw, values).await?;
+            let rst = rb.exec(&raw, values).await?;
             Ok(ExecResult {
                 rows_affected: rst.rows_affected,
                 last_insert_id: rst.last_insert_id,
