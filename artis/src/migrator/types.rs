@@ -96,8 +96,8 @@ impl TableMeta {
         let columes: Vec<_> = self.columes.iter().map(|v| v.to_string()).collect();
         let mut raw = raw!("CREATE TABLE {} ({}", self.name, columes.join(","));
         if !self.primary.is_empty() {
-            raw.push_str(&raw!(", PRIMARY KEY ({}))", self.primary));
+            raw.push_str(&raw!(", PRIMARY KEY ({})", self.primary));
         }
-        raw
+        raw!("{})", raw)
     }
 }

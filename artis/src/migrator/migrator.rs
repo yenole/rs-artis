@@ -85,18 +85,18 @@ impl<'a> Artis {
         let mapping = m.mapping();
         let mut metas = v.clone();
         metas.iter_mut().for_each(|v| v.mapping(&mapping));
+        println!("{:#?}", metas);
         for v in metas.iter() {
             if !dict.contains_key(&v.name) {
                 let raw = m.create_table(v)?;
-                let raw = Box::leak(raw.into_boxed_str());
-                let _ = self.exec(raw, vec![]).await?;
+                println!("{}", raw);
+                let _ = self.exec(&raw, vec![]).await?;
                 continue;
             }
             let (columes, indexs) = v.patch(dict.get(&v.name).unwrap())?;
             for (t, meta) in columes.iter() {
                 let raw = m.colume_raw(&v.name, t.clone(), meta)?;
-                let raw = Box::leak(raw.into_boxed_str());
-                let _ = self.exec(raw, vec![]).await?;
+                let _ = self.exec(&raw, vec![]).await?;
             }
             for (t, meta) in indexs.iter() {
                 let raw = match t {
@@ -104,8 +104,7 @@ impl<'a> Artis {
                     Adjust::Drop => m.drop_index(&v.name, meta)?,
                     _ => continue,
                 };
-                let raw = Box::leak(raw.into_boxed_str());
-                let _ = self.exec(raw, vec![]).await?;
+                let _ = self.exec(&raw, vec![]).await?;
             }
         }
         Ok(())

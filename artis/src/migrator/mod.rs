@@ -1,9 +1,8 @@
 mod types;
 
 pub mod migrator;
-pub use types::{ColumeMeta, IndexMeta, Mapping, TableMeta};
-
-pub use migrator::DriverMigrator;
+pub use migrator::{ArtisMigrator, DriverMigrator};
+pub use types::{Adjust, ColumeMeta, IndexMeta, Mapping, TableMeta};
 
 #[cfg(feature = "sqlite")]
 mod migrator_sqlite;

@@ -1,56 +1,171 @@
+use proc_macro2::{TokenStream, TokenTree};
 use quote::quote;
 use syn::{
-    parse_macro_input, AngleBracketedGenericArguments, DeriveInput, GenericArgument, PathArguments,
-    Type,
+    parse_macro_input, Attribute, DataStruct, DeriveInput, GenericArgument, PathSegment, Type,
 };
+
+fn extrat_colume(v: &PathSegment) -> String {
+    if v.arguments.is_empty() {
+        return v.ident.to_string();
+    }
+    let raw = v.ident.to_string();
+    match raw.as_str() {
+        "Vec" => return "Vec".into(),
+        "HashMap" => return "Map".into(),
+        _ => {}
+    };
+    if let syn::PathArguments::AngleBracketed(v) = &v.arguments {
+        if let GenericArgument::Type(v) = v.args.first().unwrap() {
+            return extrat_type(v);
+        }
+    }
+    "".into()
+}
+
+fn extrat_type(t: &syn::Type) -> String {
+    if let Type::Path(v) = t {
+        return extrat_colume(v.path.segments.first().unwrap());
+    }
+    return "".into();
+}
+
+#[derive(Debug, Clone, Default)]
+struct Artis {
+    pub name: String,
+    pub typ: String,
+    pub nonull: bool,
+    pub index: bool,
+    pub unique: bool,
+    pub primary: bool,
+    pub default: String,
+    pub comment: String,
+}
+
+fn extrat_literal(v: Option<TokenTree>) -> String {
+    if v.is_none() {
+        return "".into();
+    }
+    v.unwrap().to_string().trim_matches('"').to_string()
+}
+
+impl From<TokenStream> for Artis {
+    fn from(value: TokenStream) -> Self {
+        let mut itr = value.into_iter();
+        let mut artis = Artis::default();
+        while let Some(v) = itr.next() {
+            let raw = v.to_string();
+            match raw.as_str() {
+                "type" => {
+                    itr.next();
+                    artis.typ = extrat_literal(itr.next());
+                }
+                "default" => {
+                    itr.next();
+                    artis.default = extrat_literal(itr.next());
+                }
+                "comment" => {
+                    itr.next();
+                    artis.comment = extrat_literal(itr.next());
+                }
+                "INDEX" => {
+                    artis.index = true;
+                }
+                "UNIQUE" => {
+                    artis.unique = true;
+                }
+                "NOT_NULL" => {
+                    artis.nonull = true;
+                }
+                "PRIMARY" => {
+                    artis.primary = true;
+                }
+                _ => {}
+            }
+        }
+        artis
+    }
+}
+
+fn extrat_attrs(list: Vec<Attribute>) -> Option<Artis> {
+    for v in list {
+        let meta = &v.meta.require_list().unwrap();
+        if !meta.path.is_ident("artis") {
+            continue;
+        }
+        return Some(meta.tokens.clone().into());
+    }
+    None
+}
+
+fn extend_feilds(v: &DataStruct) -> Vec<Artis> {
+    let mut fields: Vec<Artis> = vec![];
+    for field in &v.fields {
+        let mut artis = Artis::default();
+        if let Some(v) = extrat_attrs(field.attrs.clone()) {
+            artis = v;
+        }
+        artis.name = field.ident.as_ref().unwrap().to_string();
+        if artis.typ.is_empty() {
+            artis.typ = format!(":{}", extrat_type(&field.ty));
+        }
+        fields.push(artis);
+    }
+    fields
+}
 
 #[proc_macro_derive(Artis, attributes(artis))]
 pub fn device_artis(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
+    let name = input.ident;
+    let table = format!("{}s", name.to_string().to_lowercase());
+    let mut inx_quote: Vec<TokenStream> = vec![];
+    let mut com_quote: Vec<TokenStream> = vec![];
+    let mut primary = String::new();
     if let syn::Data::Struct(s) = input.data {
-        s.fields.iter().for_each(|f| {
-            println!("field name: {}", f.ident.as_ref().unwrap());
-            // println!("field type: {:#?}", f.ty);
-            f.attrs.iter().for_each(|a| {
-                if let Ok(meta) = a.meta.require_list() {
-                    println!("attr: {:#?}", meta.path.get_ident().unwrap().to_string());
-                    println!("tokens: {:#?}", meta.tokens);
-                }
-                // let meta = a.meta.require_list();
-                // println!(
-                //     "attr: {:#?}",
-                //     a.meta.path().get_ident().unwrap().to_string()
-                // );
-                // println!("attr: {:#?}", a.meta.require_list());
-            });
-            // 获取类型
-            // if let syn::Type::Path(v) = &f.ty {
-            //     let first = v.path.segments.first().unwrap();
-            //     println!("first type:{:#?}", first.ident);
-            //     if let PathArguments::AngleBracketed(v) = &first.arguments {
-            //         let secen = v.args.first().unwrap().clone();
-            //         if let GenericArgument::Type(v) = secen {
-            //             if let Type::Path(v) = v {
-            //                 println!("{:#?}", v.path.get_ident());
-            //             }
-            //         }
-            //     }
-            // }
-        });
+        let fields = extend_feilds(&s);
+        for field in fields {
+            let name = &field.name;
+            let colume = field.typ;
+            let nullable = !field.nonull;
+            let default = field.default;
+            let comment = field.comment;
+            let quote = quote! {artis::migrator::ColumeMeta {
+                name:#name.into(),
+                colume: #colume.into(),
+                nullable: #nullable,
+                default: #default.into(),
+                comment: #comment.into()
+            }};
+            com_quote.push(quote.into());
+
+            if field.primary {
+                primary = field.name;
+                continue;
+            }
+            if field.unique {
+                inx_quote.push(quote! {
+                    artis::migrator::IndexMeta::Unique(#name.into())
+                });
+                continue;
+            }
+            if field.index {
+                inx_quote.push(quote! {
+                    artis::migrator::IndexMeta::Index(#name.into())
+                });
+            }
+        }
     }
-    // match input.data {
-    //     syn::Data::Struct(data) => {
-    //         match data.fields {
-    //             syn::Fields::Named(fields) => {
-    //                 // 遍历 named fields，获取每个字段的类型
-    //                 for field in fields.named {
-    //                     println!("field name: {}, type: {:#?}", field.ty);
-    //                 }
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-    //     _ => {}
-    // }
-    quote! {}.into()
+    let code = quote! {
+        impl artis::migrator::ArtisMigrator for #name {
+            fn migrator() -> artis::migrator::TableMeta {
+                artis::migrator::TableMeta {
+                    name: #table.into(),
+                    primary: #primary.into(),
+                    columes: vec![#(#com_quote,)*],
+                    indexs: vec![#(#inx_quote,)*]
+                }
+            }
+        }
+    };
+    code.into()
 }
