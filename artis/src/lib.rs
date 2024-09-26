@@ -2,16 +2,17 @@ mod artis;
 mod artis_tx;
 mod decode;
 mod error;
-mod feature;
 mod into_raw;
 mod types;
+
+pub mod driver;
 
 pub mod migrator;
 
 pub use artis::{Artis, ArtisExecutor, Executor, TxExecutor};
 pub use artis_tx::ArtisTx;
+pub use driver::Value;
 pub use error::Error;
-pub use feature::Value;
 pub use into_raw::{IntoRaw, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
 

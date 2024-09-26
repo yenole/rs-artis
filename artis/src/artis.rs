@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use serde::de::DeserializeOwned;
 
-use crate::decode::decode;
+use crate::decode::{decode, decode_pluck};
 use crate::types::{Args, ExecResult, IntoArtis, RawType};
 use crate::ArtisTx;
 use crate::IntoRaw;
@@ -15,6 +15,7 @@ pub trait Executor: Debug + Send + Sync {
 
     fn exec(&self, raw: String, args: Args) -> BoxFuture<Result<ExecResult>>;
 }
+
 pub trait TxExecutor {
     fn begin(&self) -> BoxFuture<Result<ArtisTx>>;
 }
@@ -57,13 +58,19 @@ impl IntoArtis for Artis {
         Box::pin(async { Ok(decode(wait.await?)?) })
     }
 
-    fn saving<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
+    fn pluck<T>(&self, i: &dyn IntoRaw, colume: &'static str) -> BoxFuture<Result<T>>
     where
         T: DeserializeOwned,
     {
+        let (raw, args) = i.into_raw(RawType::Fetch);
+        let wait = self.c.query(raw.into(), args);
+        Box::pin(async { Ok(decode_pluck(wait.await?, colume)?) })
+    }
+
+    fn saving(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>> {
         let (raw, args) = i.into_raw(RawType::Saving);
         let wait = self.c.exec(raw.into(), args);
-        Box::pin(async { Ok(decode(wait.await?.last_insert_id)?) })
+        Box::pin(async { Ok(wait.await?.last_insert_id) })
     }
 
     fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {

@@ -2,7 +2,7 @@ use std::{fmt::Debug, future::Future};
 
 use serde::de::DeserializeOwned;
 
-use crate::{IntoRaw, Result};
+use crate::{IntoRaw, Result, Value};
 
 pub type Args = Vec<crate::Value>;
 pub type Columns = Vec<String>;
@@ -13,9 +13,11 @@ pub trait IntoArtis: Debug + Send + Sync {
     where
         T: DeserializeOwned;
 
-    fn saving<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
+    fn pluck<T>(&self, i: &dyn IntoRaw, colume: &'static str) -> BoxFuture<Result<T>>
     where
         T: DeserializeOwned;
+
+    fn saving(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>>;
 
     fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>>;
 

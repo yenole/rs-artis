@@ -7,7 +7,7 @@ edition = "2021"
 description = "Artis is a SQL library"
 
 [features]
-default = ["mysql"]
+default = []
 sqlite = []
 mysql = []
 

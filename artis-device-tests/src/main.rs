@@ -1,4 +1,4 @@
-use artis::{migrator::ArtisMigrator, Artis, Result};
+use artis::{migrator::ArtisMigrator, rbv, Artis, IntoArtis, Result};
 use artis_device::Artis;
 
 #[cfg(feature = "mysql")]
@@ -59,8 +59,18 @@ async fn into_migrator() -> Result<()> {
     Ok(())
 }
 
+async fn into_plus() -> Result<()> {
+    let rb = acuipe().await?;
+    // let raw = ("persons", rbv! { "name":"Jack", });
+    // let _ = rb.saving(&raw).await?;
+    let raw = ("persons", ("id > 0", vec![]));
+    let names: Vec<String> = rb.pluck(&raw, "name").await?;
+    println!("{:?}", names);
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     println!("into_sqlite:{:?}", into_migrator().await);
-    // println!("into_raw:{:?}", into_raw().await);
+    println!("into_raw:{:?}", into_plus().await);
 }
