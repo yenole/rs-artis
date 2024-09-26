@@ -8,14 +8,12 @@ mod types;
 
 pub mod migrator;
 
-pub use artis::{Artis, Executor};
+pub use artis::{Artis, ArtisExecutor, Executor, TxExecutor};
 pub use artis_tx::ArtisTx;
 pub use error::Error;
 pub use feature::Value;
 pub use into_raw::{IntoRaw, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
-
-// pub use driver::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

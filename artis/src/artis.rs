@@ -15,17 +15,19 @@ pub trait Executor: Debug + Send + Sync {
 
     fn exec(&self, raw: String, args: Args) -> BoxFuture<Result<ExecResult>>;
 }
-pub trait ChunkExecutor: Executor {
+pub trait TxExecutor {
     fn begin(&self) -> BoxFuture<Result<ArtisTx>>;
 }
 
+pub trait ArtisExecutor: TxExecutor + Executor {}
+
 #[derive(Debug, Clone)]
 pub struct Artis {
-    c: Arc<Box<dyn ChunkExecutor>>,
+    c: Arc<Box<dyn ArtisExecutor>>,
 }
 
-impl From<Box<dyn ChunkExecutor>> for Artis {
-    fn from(value: Box<dyn ChunkExecutor>) -> Self {
+impl From<Box<dyn ArtisExecutor>> for Artis {
+    fn from(value: Box<dyn ArtisExecutor>) -> Self {
         Self { c: Arc::new(value) }
     }
 }

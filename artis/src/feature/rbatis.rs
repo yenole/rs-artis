@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use rbatis::{rbatis, RBatis};
 
-use crate::{artis::ChunkExecutor, Artis, BoxFuture, ExecResult, Executor, Result, Value};
-
-type BoxChunkExecutor = Box<dyn ChunkExecutor>;
+use crate::{Artis, ArtisExecutor, BoxFuture, ExecResult, Executor, Result, TxExecutor, Value};
 
 #[derive(Debug)]
 pub struct InnerRBatis {
@@ -13,7 +11,8 @@ pub struct InnerRBatis {
 
 impl From<Arc<RBatis>> for Artis {
     fn from(value: Arc<RBatis>) -> Self {
-        (Box::new(InnerRBatis { rb: value }) as BoxChunkExecutor).into()
+        let rb = Box::new(InnerRBatis { rb: value });
+        (rb as Box<dyn ArtisExecutor>).into()
     }
 }
 
@@ -22,6 +21,8 @@ impl From<RBatis> for crate::Artis {
         Arc::new(value).into()
     }
 }
+
+impl ArtisExecutor for InnerRBatis {}
 
 impl Executor for InnerRBatis {
     fn query(&self, raw: String, args: Vec<Value>) -> BoxFuture<Result<Value>> {
@@ -41,7 +42,7 @@ impl Executor for InnerRBatis {
     }
 }
 
-impl ChunkExecutor for InnerRBatis {
+impl TxExecutor for InnerRBatis {
     fn begin(&self) -> BoxFuture<Result<crate::ArtisTx>> {
         let rb = Arc::clone(&self.rb);
         Box::pin(async move { Ok(rb.acquire_begin().await?.into()) })
