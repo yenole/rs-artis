@@ -1,6 +1,6 @@
 [package]
 name = "artis"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
