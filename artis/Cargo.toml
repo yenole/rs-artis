@@ -5,7 +5,7 @@ authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
 description = "Artis is a SQL library"
-repository = "https://github.com/yeole/rs-artis"
+repository = "https://github.com/yenole/rs-artis"
 keywords = ["artis", "rbatis", "sql", "sqlite", "mysql"]
 readme = "../README.md"
 

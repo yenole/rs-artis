@@ -32,7 +32,9 @@ pub struct Person {
     #[artis(default = "18", comment = "年龄")]
     pub age: u32,
     #[artis(NO_NULL, UNIQUE)]
-    pub id_card: Vec<String>,
+    pub id_card: String,
+    pub list:Vec<i32>,
+    pub map:HashMap<i32,i32>,
 }
 
 
