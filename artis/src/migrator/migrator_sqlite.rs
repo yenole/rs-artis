@@ -44,13 +44,39 @@ impl Into<TableMeta> for &SqliteTable {
     }
 }
 
+impl Into<ColumeMeta> for String {
+    fn into(self) -> ColumeMeta {
+        let mut meta = ColumeMeta::default();
+        let mut itr = self.split_whitespace();
+        meta.name = itr.next().unwrap().into();
+        meta.colume = itr.next().unwrap().into();
+        meta.nullable = true;
+        while let Some(v) = itr.next() {
+            match v {
+                "NOT" => {
+                    meta.nullable = false;
+                    itr.next();
+                }
+                "DEFAULT" => {
+                    meta.default = itr.next().unwrap().into();
+                }
+                "COMMENT" => {
+                    meta.comment = itr.next().unwrap().into();
+                }
+                _ => {}
+            };
+        }
+        meta
+    }
+}
+
 impl<'a> DriverMigrator<'a> for SqliteMigrator {
     fn mapping(&self) -> super::Mapping {
         map! {
             "i32" : "INTEGER",
-            "i64" : "INT8",
+            "i64" : "INTEGER",
             "u32" : "INTEGER",
-            "u64" : "INT8",
+            "u64" : "INTEGER",
             "f32" : "DOUBLE",
             "f64" : "DOUBLE",
             "Vec" : "BLOB",
@@ -67,6 +93,9 @@ impl<'a> DriverMigrator<'a> for SqliteMigrator {
             let list: Vec<SqliteTable> = rb.fetch(&raw).await?;
             let tables: Vec<_> = list.iter().filter(|v| v.type_ == "table").collect();
             for v in tables {
+                if v.name.starts_with("sqlite_") {
+                    continue;
+                }
                 metas.push(v.into());
             }
             let indexs: Vec<_> = list.iter().filter(|v| v.type_ == "index").collect();
@@ -89,30 +118,35 @@ impl<'a> DriverMigrator<'a> for SqliteMigrator {
     }
 
     fn create_table(&self, meta: &TableMeta) -> Result<String> {
-        Ok(meta.into_raw())
-    }
-
-    fn colume_raw(&self, table: &str, t: Adjust, meta: &ColumeMeta) -> Result<String> {
-        let raw = match t {
-            Adjust::Add => raw!("ALTER TABLE {} ADD {}", table, meta),
-            Adjust::Drop => panic!("Drop colume is not supported"),
-            Adjust::Alter => raw!("ALTER TABLE {} ALTER COLUMN {}", table, meta),
-        };
+        let chunk = |v: &ColumeMeta| v.to_string();
+        let columes: Vec<_> = meta.columes.iter().map(chunk).collect();
+        let mut raw = raw!("CREATE TABLE {} ({})", meta.name, columes.join(","));
+        if !meta.primary.is_empty() {
+            raw.truncate(raw.len() - 1);
+            raw.push_str(&format!(", PRIMARY KEY({}))", meta.primary));
+        }
         Ok(raw)
     }
 
-    fn create_index(&self, table: &str, meta: &IndexMeta) -> Result<String> {
+    fn colume_raw(&self, t: &TableMeta, v: Adjust, meta: &ColumeMeta) -> Result<Vec<String>> {
+        if let Adjust::Add = v {
+            return Ok(vec![raw!("ALTER TABLE {} ADD {}", t.name, meta)]);
+        }
+        panic!("This \"{:?} Colume\" is not supported", v)
+    }
+
+    fn create_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String> {
         let mut raw = raw!("CREATE ");
         if let IndexMeta::Unique(_) = meta {
             raw.push_str("UNIQUE ");
         }
-        let name = meta.name(table);
+        let name = meta.name(&t.name);
         let column = meta.column();
-        raw.push_str(&raw!("INDEX {} ON {} ({})", name, table, column));
+        raw.push_str(&raw!("INDEX {} ON {} ({})", name, t.name, column));
         Ok(raw)
     }
 
-    fn drop_index(&self, table: &str, meta: &IndexMeta) -> Result<String> {
-        Ok(raw!("DROP INDEX {}", meta.name(table)))
+    fn drop_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String> {
+        Ok(raw!("DROP INDEX {}", meta.name(&t.name)))
     }
 }

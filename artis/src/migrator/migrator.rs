@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::{Artis, BoxFuture, IntoArtis, Result};
+use crate::{raw, Artis, BoxFuture, IntoArtis, Result};
 
 use super::{
     types::{Adjust, Mapping},
@@ -14,9 +14,9 @@ pub trait ArtisMigrator: Sized {
 pub trait DriverMigrator<'a>: Debug + Send + Sync + 'a {
     fn mapping(&self) -> Mapping;
     fn create_table(&self, meta: &TableMeta) -> Result<String>;
-    fn colume_raw(&self, table: &str, t: Adjust, meta: &ColumeMeta) -> Result<String>;
-    fn drop_index(&self, table: &str, meta: &IndexMeta) -> Result<String>;
-    fn create_index(&self, table: &str, meta: &IndexMeta) -> Result<String>;
+    fn colume_raw(&self, t: &TableMeta, t: Adjust, meta: &ColumeMeta) -> Result<Vec<String>>;
+    fn drop_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String>;
+    fn create_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String>;
     fn fetch_tables(&self, rb: &'a Artis) -> BoxFuture<'a, Result<Vec<TableMeta>>>;
 }
 
@@ -71,6 +71,9 @@ impl ColumeMeta {
             panic!("mapping not found: {}", key);
         }
         self.colume = dict[key].into();
+        if self.size != 0 {
+            self.colume = raw!("{}({})", self.colume, self.size);
+        }
     }
 }
 
@@ -85,23 +88,23 @@ impl<'a> Artis {
         let mapping = m.mapping();
         let mut metas = v.clone();
         metas.iter_mut().for_each(|v| v.mapping(&mapping));
-        println!("{:#?}", metas);
         for v in metas.iter() {
             if !dict.contains_key(&v.name) {
                 let raw = m.create_table(v)?;
-                println!("{}", raw);
                 let _ = self.exec(&raw, vec![]).await?;
                 continue;
             }
             let (columes, indexs) = v.patch(dict.get(&v.name).unwrap())?;
             for (t, meta) in columes.iter() {
-                let raw = m.colume_raw(&v.name, t.clone(), meta)?;
-                let _ = self.exec(&raw, vec![]).await?;
+                let raws: Vec<_> = m.colume_raw(&v, t.clone(), meta)?;
+                for raw in raws {
+                    let _ = self.exec(&raw, vec![]).await?;
+                }
             }
             for (t, meta) in indexs.iter() {
                 let raw = match t {
-                    Adjust::Add => m.create_index(&v.name, meta)?,
-                    Adjust::Drop => m.drop_index(&v.name, meta)?,
+                    Adjust::Add => m.create_index(&v, meta)?,
+                    Adjust::Drop => m.drop_index(&v, meta)?,
                     _ => continue,
                 };
                 let _ = self.exec(&raw, vec![]).await?;

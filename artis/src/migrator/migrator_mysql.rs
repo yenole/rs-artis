@@ -38,10 +38,12 @@ impl Into<ColumeMeta> for &Schema {
     fn into(self) -> ColumeMeta {
         ColumeMeta {
             name: self.name.clone(),
-            colume: self.type_.clone(),
+            size: 0,
+            colume: self.type_.clone().to_uppercase(),
             nullable: self.nullable == "YES",
             default: self.default.clone().unwrap_or_default(),
             comment: self.comment.clone().unwrap_or_default(),
+            increment: false,
         }
     }
 }
@@ -123,30 +125,43 @@ impl<'a> DriverMigrator<'a> for MysqlMigrator {
     }
 
     fn create_table(&self, meta: &TableMeta) -> Result<String> {
-        Ok(meta.into_raw())
-    }
-
-    fn colume_raw(&self, table: &str, t: Adjust, meta: &ColumeMeta) -> Result<String> {
-        let raw = match t {
-            Adjust::Add => raw!("ALTER TABLE {} ADD {}", table, meta),
-            Adjust::Alter => raw!("ALTER TABLE {} MODIFY {}", table, meta),
-            _ => "".into(),
+        let chunk = |v: &ColumeMeta| {
+            if !v.increment {
+                raw!("{}", v)
+            } else {
+                raw!("{} AUTO_INCREMENT", v)
+            }
         };
+        let columes: Vec<_> = meta.columes.iter().map(chunk).collect();
+        let mut raw = raw!("CREATE TABLE {} ({})", meta.name, columes.join(", "));
+        if !meta.primary.is_empty() {
+            raw.truncate(raw.len() - 1);
+            raw.push_str(&raw!(", PRIMARY KEY({}))", meta.primary));
+        }
         Ok(raw)
     }
 
-    fn create_index(&self, table: &str, meta: &IndexMeta) -> Result<String> {
+    fn colume_raw(&self, t: &TableMeta, v: Adjust, meta: &ColumeMeta) -> Result<Vec<String>> {
+        let raw = match v {
+            Adjust::Add => raw!("ALTER TABLE {} ADD {}", t.name, meta),
+            Adjust::Alter => raw!("ALTER TABLE {} MODIFY {}", t.name, meta),
+            _ => "".into(),
+        };
+        Ok(vec![raw])
+    }
+
+    fn create_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String> {
         let mut raw = raw!("CREATE ");
         if let IndexMeta::Unique(_) = meta {
             raw.push_str("UNIQUE ");
         }
-        let name = meta.name(table);
+        let name = meta.name(&t.name);
         let column = meta.column();
-        raw.push_str(&raw!("INDEX {} ON {} ({})", name, table, column));
+        raw.push_str(&raw!("INDEX {} ON {} ({})", name, t.name, column));
         Ok(raw)
     }
 
-    fn drop_index(&self, table: &str, meta: &IndexMeta) -> Result<String> {
-        Ok(raw!("DROP INDEX {} ON {}", meta.name(table), table))
+    fn drop_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String> {
+        Ok(raw!("DROP INDEX {} ON {}", meta.name(&t.name), t.name))
     }
 }

@@ -35,13 +35,30 @@ pub enum Adjust {
     Alter,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone)]
 pub struct ColumeMeta {
     pub name: String,    // 字段
+    pub size: usize,     // 大小
     pub colume: String,  // 类型
     pub nullable: bool,  // 是否为空
     pub default: String, // 默认值
     pub comment: String, // 注释
+    pub increment: bool, // 自增
+}
+
+impl PartialEq for ColumeMeta {
+    fn eq(&self, other: &Self) -> bool {
+        if self.name != other.name
+            || self.nullable != other.nullable
+            || self.default != other.default
+        {
+            return false;
+        }
+        if self.size != 0 && self.colume != other.colume {
+            return false;
+        }
+        other.colume.starts_with(&self.colume)
+    }
 }
 
 impl Display for ColumeMeta {
@@ -57,32 +74,6 @@ impl Display for ColumeMeta {
     }
 }
 
-impl Into<ColumeMeta> for String {
-    fn into(self) -> ColumeMeta {
-        let mut meta = ColumeMeta::default();
-        let mut itr = self.split_whitespace();
-        meta.name = itr.next().unwrap().into();
-        meta.colume = itr.next().unwrap().into();
-        meta.nullable = true;
-        while let Some(v) = itr.next() {
-            match v {
-                "NOT" => {
-                    meta.nullable = false;
-                    itr.next();
-                }
-                "DEFAULT" => {
-                    meta.default = itr.next().unwrap().into();
-                }
-                "COMMENT" => {
-                    meta.comment = itr.next().unwrap().into();
-                }
-                _ => {}
-            };
-        }
-        meta
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct TableMeta {
     pub name: String,             // 表名
@@ -91,13 +82,9 @@ pub struct TableMeta {
     pub columes: Vec<ColumeMeta>, // 字段
 }
 
-impl TableMeta {
-    pub fn into_raw(&self) -> String {
-        let columes: Vec<_> = self.columes.iter().map(|v| v.to_string()).collect();
-        let mut raw = raw!("CREATE TABLE {} ({}", self.name, columes.join(","));
-        if !self.primary.is_empty() {
-            raw.push_str(&raw!(", PRIMARY KEY ({})", self.primary));
-        }
-        raw!("{})", raw)
-    }
-}
+// impl TableMeta {
+//     pub fn into_raw(&self) -> String {
+//         let columes: Vec<_> = self.columes.iter().map(|v| v.to_string()).collect();
+//         raw!("CREATE TABLE {} ({})", self.name, columes.join(","))
+//     }
+// }

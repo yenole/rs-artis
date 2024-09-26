@@ -1,4 +1,4 @@
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::quote;
 use syn::{
     parse_macro_input, Attribute, DataStruct, DeriveInput, GenericArgument, PathSegment, Type,
@@ -29,16 +29,35 @@ fn extrat_type(t: &syn::Type) -> String {
     return "".into();
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct Artis {
     pub name: String,
     pub typ: String,
+    pub size: Option<TokenTree>,
     pub nonull: bool,
     pub index: bool,
     pub unique: bool,
     pub primary: bool,
     pub default: String,
     pub comment: String,
+    pub increment: bool,
+}
+
+impl Default for Artis {
+    fn default() -> Self {
+        Self {
+            name: "".into(),
+            typ: "".into(),
+            size: Some(Literal::i32_unsuffixed(0).into()),
+            nonull: false,
+            index: false,
+            unique: false,
+            primary: false,
+            default: "".into(),
+            comment: "".into(),
+            increment: false,
+        }
+    }
 }
 
 fn extrat_literal(v: Option<TokenTree>) -> String {
@@ -59,6 +78,10 @@ impl From<TokenStream> for Artis {
                     itr.next();
                     artis.typ = extrat_literal(itr.next());
                 }
+                "size" => {
+                    itr.next();
+                    artis.size = itr.next(); //ktol extrat_literal(itr.next()).parse::<i32>().unwrap();
+                }
                 "default" => {
                     itr.next();
                     artis.default = extrat_literal(itr.next());
@@ -78,6 +101,10 @@ impl From<TokenStream> for Artis {
                 }
                 "PRIMARY" => {
                     artis.primary = true;
+                    artis.nonull = true;
+                }
+                "AUTO_INCREMENT" => {
+                    artis.increment = true;
                 }
                 _ => {}
             }
@@ -126,15 +153,19 @@ pub fn device_artis(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for field in fields {
             let name = &field.name;
             let colume = field.typ;
+            let size = field.size;
             let nullable = !field.nonull;
             let default = field.default;
             let comment = field.comment;
+            let increment = field.increment;
             let quote = quote! {artis::migrator::ColumeMeta {
                 name:#name.into(),
                 colume: #colume.into(),
+                size: #size,
                 nullable: #nullable,
                 default: #default.into(),
-                comment: #comment.into()
+                comment: #comment.into(),
+                increment:#increment
             }};
             com_quote.push(quote.into());
 
@@ -155,7 +186,7 @@ pub fn device_artis(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     }
-    let code = quote! {
+    quote! {
         impl artis::migrator::ArtisMigrator for #name {
             fn migrator() -> artis::migrator::TableMeta {
                 artis::migrator::TableMeta {
@@ -166,6 +197,6 @@ pub fn device_artis(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
         }
-    };
-    code.into()
+    }
+    .into()
 }
