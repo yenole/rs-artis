@@ -1,5 +1,4 @@
 use artis::{migrator::ArtisMigrator, rbv, Artis, IntoArtis, Result};
-use artis_device::Artis;
 
 #[cfg(feature = "mysql")]
 use artis::migrator::MysqlMigrator;
@@ -14,7 +13,7 @@ use artis::migrator::SqliteMigrator;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Artis)]
+#[derive(Debug, Serialize, Deserialize, artis::Artis)]
 pub struct Person {
     #[artis(PRIMARY, AUTO_INCREMENT)]
     pub id: Option<u64>,
@@ -71,6 +70,6 @@ async fn into_plus() -> Result<()> {
 
 #[tokio::main]
 async fn main() {
-    println!("into_sqlite:{:?}", into_migrator().await);
+    println!("into_migrator:{:?}", into_migrator().await);
     println!("into_raw:{:?}", into_plus().await);
 }

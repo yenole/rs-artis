@@ -6,7 +6,6 @@ mod into_raw;
 mod types;
 
 pub mod driver;
-
 pub mod migrator;
 
 pub use artis::{Artis, ArtisExecutor, Executor, TxExecutor};
@@ -15,6 +14,9 @@ pub use driver::Value;
 pub use error::Error;
 pub use into_raw::{IntoRaw, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
+
+#[cfg(feature = "derive")]
+pub use artis_device::Artis;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

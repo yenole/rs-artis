@@ -118,21 +118,25 @@ impl<'a> DriverMigrator<'a> for SqliteMigrator {
     }
 
     fn create_table(&self, meta: &TableMeta) -> Result<String> {
-        let chunk = |v: &ColumeMeta| v.to_string();
+        let chunk = |v: &ColumeMeta| {
+            let mut raw = v.to_string();
+            let is_primary = v.name == meta.primary;
+            if is_primary && v.increment {
+                raw.push_str(&raw!(" PRIMARY KEY AUTOINCREMENT"));
+            } else if is_primary {
+                raw.push_str(&raw!(" PRIMARY KEY"));
+            }
+            raw
+        };
         let columes: Vec<_> = meta.columes.iter().map(chunk).collect();
-        let mut raw = raw!("CREATE TABLE {} ({})", meta.name, columes.join(","));
-        if !meta.primary.is_empty() {
-            raw.truncate(raw.len() - 1);
-            raw.push_str(&format!(", PRIMARY KEY({}))", meta.primary));
-        }
-        Ok(raw)
+        Ok(raw!("CREATE TABLE {} ({})", meta.name, columes.join(",")))
     }
 
     fn colume_raw(&self, t: &TableMeta, v: Adjust, meta: &ColumeMeta) -> Result<Vec<String>> {
         if let Adjust::Add = v {
             return Ok(vec![raw!("ALTER TABLE {} ADD {}", t.name, meta)]);
         }
-        panic!("This \"{:?} Colume\" is not supported", v)
+        panic!("This isn't supported at : {}.{:#?}", t.name, meta)
     }
 
     fn create_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String> {

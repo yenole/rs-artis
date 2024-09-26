@@ -44,7 +44,7 @@ impl TableMeta {
         }
 
         let mut indexs: AlterIndex = vec![];
-        let dict: HashMap<_, _> = meta.indexs.iter().map(|v| (v.column(), v)).collect();
+        let mut dict: HashMap<_, _> = meta.indexs.iter().map(|v| (v.column(), v)).collect();
         for imeta in self.indexs.iter() {
             let column = imeta.column();
             if !dict.contains_key(&column) {
@@ -56,6 +56,10 @@ impl TableMeta {
                 indexs.push((Adjust::Drop, meta.to_owned()));
                 indexs.push((Adjust::Add, imeta.clone()));
             }
+            dict.remove(&column);
+        }
+        for v in dict.values_mut() {
+            indexs.push((Adjust::Drop, v.clone()));
         }
         Ok((columes, indexs))
     }
@@ -92,9 +96,13 @@ impl<'a> Artis {
             if !dict.contains_key(&v.name) {
                 let raw = m.create_table(v)?;
                 let _ = self.exec(&raw, vec![]).await?;
+                for inx in v.indexs.iter() {
+                    let raw = m.create_index(v, inx)?;
+                    let _ = self.exec(&raw, vec![]).await?;
+                }
                 continue;
             }
-            let (columes, indexs) = v.patch(dict.get(&v.name).unwrap())?;
+            let (columes, indexs) = v.patch(dict[&v.name])?;
             for (t, meta) in columes.iter() {
                 let raws: Vec<_> = m.colume_raw(&v, t.clone(), meta)?;
                 for raw in raws {

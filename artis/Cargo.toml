@@ -7,9 +7,10 @@ edition = "2021"
 description = "Artis is a SQL library"
 
 [features]
-default = []
+default = ["derive"]
 sqlite = []
 mysql = []
+derive = ["artis-device"]
 
 [dependencies]
 rbatis = "4.5.30"

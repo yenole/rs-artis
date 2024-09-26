@@ -10,8 +10,7 @@ sqlite = ["artis/sqlite"]
 
 
 [dependencies]
-artis = { path = "../artis", features = ["mysql"] }
-artis-device = { path = "../artis-device" }
+artis = { path = "../artis", features = ["mysql", "derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 rbatis = "4.5.21"
 rbdc = "4.5.30"
