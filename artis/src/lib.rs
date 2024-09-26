@@ -16,7 +16,7 @@ pub use into_raw::{IntoRaw, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
 
 #[cfg(feature = "derive")]
-pub use artis_device::Artis;
+pub use artis_derive::Artis;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

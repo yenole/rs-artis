@@ -5,15 +5,18 @@ authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
 description = "Artis is a SQL library"
+repository = "https://github.com/yeole/rs-artis"
+keywords = ["artis", "rbatis", "sql", "sqlite", "mysql"]
+readme = "../README.md"
 
 [features]
 default = ["derive"]
 sqlite = []
 mysql = []
-derive = ["artis-device"]
+derive = ["artis-derive"]
 
 [dependencies]
+artis-derive = { version = "0.1.0", optional = true }
 rbatis = "4.5.30"
 rbs = "4.5.18"
-artis-device = { optional = true, path = "../artis-device" }
 serde = { version = "1.0.210", features = ["derive"] }

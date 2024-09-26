@@ -1,0 +1,19 @@
+[package]
+name = "artis-derive"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yoruno xusir92@gamil.com"]
+license = "MIT"
+description = "Artis is a SQL library"
+repository = "https://github.com/yeole/rs-artis"
+keywords = ["artis", "rbatis", "sql", "sqlite", "mysql"]
+readme = "../README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.86"
+quote = "1.0.37"
+
+syn = { version = "2.0.77", features = ["extra-traits"] }

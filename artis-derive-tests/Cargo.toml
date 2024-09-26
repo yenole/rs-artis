@@ -1,5 +1,5 @@
 [package]
-name = "artis-device-tests"
+name = "artis-derive-tests"
 version = "0.1.0"
 edition = "2021"
 
