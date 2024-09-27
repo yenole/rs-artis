@@ -18,3 +18,7 @@ rbs = "4.5.18"
 serde = { version = "1.0.210", features = ["derive"] }
 rbdc-sqlite = "4.5.5"
 rbdc-mysql = "4.5.11"
+log = "0.4.22"
+dotenv = "0.15.0"
+dotenv_config = "0.1.8"
+env_logger = "0.10.0"

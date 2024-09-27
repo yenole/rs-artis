@@ -12,11 +12,18 @@ pub use artis::{Artis, ArtisExecutor, Executor, TxExecutor};
 pub use artis_tx::ArtisTx;
 pub use driver::Value;
 pub use error::Error;
-pub use into_raw::{IntoRaw, Raw};
+pub use into_raw::{IntoLimit, IntoRaw, IntoTable, Raw};
 pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
 
 #[cfg(feature = "derive")]
 pub use artis_derive::Artis;
+
+#[cfg_attr(feature = "derive", macro_export)]
+macro_rules! meta {
+    ($($v:tt),* $(,)?) => {
+        vec![$($v::migrator(),)*]
+    };
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -3,7 +3,21 @@ use serde::de::DeserializeOwned;
 use crate::Value;
 
 pub fn decode<T: DeserializeOwned>(v: Value) -> crate::Result<T> {
+    let type_name = std::any::type_name::<T>();
+    if type_name == std::any::type_name::<u64>() {
+        return Ok(decode_i64(v)?);
+    }
     Ok(rbatis::decode(v)?)
+}
+pub fn decode_i64<T: DeserializeOwned>(v: Value) -> crate::Result<T> {
+    if !v.is_array() || v.is_empty() {
+        return Ok(rbs::from_value(rbs::Value::U64(0u64))?);
+    }
+    let v = v.as_array().unwrap().first().unwrap();
+    if !v.is_map() || v.is_empty() {
+        return Ok(rbs::from_value(rbs::Value::U64(0u64))?);
+    }
+    Ok(rbs::from_value_ref(&v[0])?)
 }
 
 pub fn decode_pluck<T: DeserializeOwned>(v: Value, colume: &str) -> crate::Result<T> {

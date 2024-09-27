@@ -21,21 +21,22 @@ struct SqliteTable {
     pub sql: String,
 }
 
-fn extract_range(str: &str) -> String {
-    let r_idx = str.find("(").unwrap();
-    let l_idx = str.rfind(")").unwrap();
-    str[r_idx + 1..l_idx].into()
+#[inline]
+fn extract_range(str: &str, p: (&str, &str)) -> String {
+    let r_idx = str.find(p.0).unwrap();
+    let l_idx = str.rfind(p.1).unwrap();
+    str[r_idx + p.0.len()..l_idx].trim().into()
 }
 
 impl Into<TableMeta> for &SqliteTable {
     fn into(self) -> TableMeta {
         let mut meta = TableMeta::default();
         meta.name = self.name.clone();
-        let raw = extract_range(&self.sql);
+        let raw = extract_range(&self.sql, ("(", ")"));
         let columes: Vec<_> = raw.split(",").collect();
         columes.iter().for_each(|v| {
             if v.trim().starts_with("PRIMARY KEY") {
-                meta.primary = extract_range(v);
+                meta.primary = extract_range(v, ("(", ")"));
             } else {
                 meta.columes.push(v.to_string().into());
             }
@@ -100,15 +101,17 @@ impl<'a> DriverMigrator<'a> for SqliteMigrator {
             }
             let indexs: Vec<_> = list.iter().filter(|v| v.type_ == "index").collect();
             for v in indexs {
-                let slice: Vec<_> = v.name.split("_").collect();
+                let table = extract_range(&v.sql, ("ON", "("));
+                let colume = extract_range(&v.sql, ("(", ")"));
                 for meta in metas.iter_mut() {
-                    if meta.name == slice[1] {
-                        let inx = match slice[0] {
-                            "idx" => IndexMeta::Index(slice[2].into()),
-                            "unq" => IndexMeta::Unique(slice[2].into()),
-                            _ => continue,
-                        };
-                        meta.indexs.push(inx);
+                    if meta.name == table {
+                        if v.sql.contains("UNIQUE") {
+                            meta.indexs.push(IndexMeta::Unique(colume));
+                        } else if v.sql.contains("INDEX") {
+                            meta.indexs.push(IndexMeta::Index(colume));
+                        } else {
+                            continue;
+                        }
                         break;
                     }
                 }

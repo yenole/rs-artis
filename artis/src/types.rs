@@ -56,6 +56,22 @@ impl RawType {
         }
     }
 
+    pub fn is_update(&self) -> bool {
+        if let RawType::Update = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_delete(&self) -> bool {
+        if let RawType::Delete = self {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_single_prop(&self) -> bool {
         match self {
             Self::Update => true,

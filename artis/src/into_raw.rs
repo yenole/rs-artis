@@ -8,6 +8,32 @@ pub trait IntoRaw {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>);
 }
 
+pub trait IntoTable {
+    fn into_table(&self) -> String;
+}
+
+impl IntoTable for &'static str {
+    fn into_table(&self) -> String {
+        self.to_string()
+    }
+}
+
+pub trait IntoLimit: Clone {
+    fn into_limit(&self) -> (u32, u32);
+}
+
+impl IntoLimit for i32 {
+    fn into_limit(&self) -> (u32, u32) {
+        (*self as u32, 0)
+    }
+}
+
+impl IntoLimit for (i32, i32) {
+    fn into_limit(&self) -> (u32, u32) {
+        (self.0 as u32, self.1 as u32)
+    }
+}
+
 #[derive(Debug, Clone)]
 enum Props {
     Empty,
@@ -58,21 +84,8 @@ impl Raw {
         self
     }
 
-    pub fn limit(mut self, v: u32) -> Self {
-        if let Props::Limit((_, o)) = self.inner[4] {
-            self.inner[5] = Props::Limit((v, o));
-        } else {
-            self.inner[5] = Props::Limit((v, 0));
-        }
-        self
-    }
-
-    pub fn offset(mut self, v: u32) -> Self {
-        if let Props::Limit((l, _)) = self.inner[5] {
-            self.inner[5] = Props::Limit((l, v));
-        } else {
-            self.inner[5] = Props::Limit((0, v));
-        }
+    pub fn limit(mut self, v: impl IntoLimit) -> Self {
+        self.inner[5] = Props::Limit(v.into_limit());
         self
     }
 }
@@ -125,7 +138,7 @@ impl Raw {
         raw.push_str(&raw!("UPDATE {}", t));
         let keys = Raw::extend_map(v, args, s);
         if !keys.is_empty() {
-            raw.push_str(&raw!(" SET {} = ?", keys.join("= ? , ")));
+            raw.push_str(&raw!(" SET {} = ?", keys.join(" = ?, ")));
         }
     }
 
@@ -203,204 +216,243 @@ impl IntoRaw for Raw {
 
 impl IntoRaw for String {
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if !v.is_fetch() && !v.is_delete() {
+            panic!("Not supported")
+        }
         Raw::table(self).into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, &'static str) {
+impl<T> IntoRaw for (T, &'static str)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0).order(self.1).into_raw(v)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table()).order(self.1).into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, i32) {
+impl<T, L> IntoRaw for (T, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0).limit(self.1 as u32).into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, (i32, i32)) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .limit(self.1 .0 as u32)
-            .offset(self.1 .1 as u32)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .limit(self.1.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, &'static str, i32) {
+impl<T, L> IntoRaw for (T, &'static str, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .order(self.1)
-            .limit(self.2 as u32)
+            .limit(self.2.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, &'static str, (i32, i32)) {
+impl<T> IntoRaw for (T, Vec<&'static str>)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .order(self.1)
-            .limit(self.2 .0 as u32)
-            .offset(self.2 .1 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Vec<&'static str>) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0).select(self.1.clone()).into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Vec<&'static str>, i32) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .select(self.1.clone())
-            .limit(self.2 as u32)
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, Vec<&'static str>, (i32, i32)) {
+impl<T> IntoRaw for (T, Vec<&'static str>, &'static str)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .select(self.1.clone())
-            .limit(self.2 .0 as u32)
-            .offset(self.2 .1 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Vec<&'static str>, &'static str, i32) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .select(self.1.clone())
             .order(self.2)
-            .limit(self.3 as u32)
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, Vec<&'static str>, &'static str, (i32, i32)) {
+impl<T, L> IntoRaw for (T, Vec<&'static str>, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .select(self.1.clone())
+            .limit(self.2.clone())
+            .into_raw(v)
+    }
+}
+
+impl<T, L> IntoRaw for (T, Vec<&'static str>, &'static str, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .select(self.1.clone())
             .order(self.2)
-            .limit(self.3 .0 as u32)
-            .offset(self.3 .1 as u32)
+            .limit(self.3.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, Value) {
+impl<T> IntoRaw for (T, Value)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0).model(self.1.clone()).into_raw(v)
+        if v.is_update() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .model(self.1.clone())
+            .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, Value, &'static str) {
+impl<T> IntoRaw for (T, Value, &'static str)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if v.is_fetch() {
+            return Raw::table(&self.0.into_table())
+                .model(self.1.clone())
+                .order(self.2)
+                .into_raw(v);
+        } else if v.is_update() {
+            return Raw::table(&self.0.into_table())
+                .model(self.1.clone())
+                .where_(self.2, vec![])
+                .into_raw(v);
+        }
+        panic!("Not supported")
+    }
+}
+
+impl<T, L> IntoRaw for (T, Value, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .model(self.1.clone())
+            .limit(self.2.clone())
+            .into_raw(v)
+    }
+}
+
+impl<T, L> IntoRaw for (T, Value, &'static str, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .model(self.1.clone())
             .order(self.2)
+            .limit(self.3.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, Value, i32) {
+impl<T> IntoRaw for (T, (&'static str, Args))
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .model(self.1.clone())
-            .limit(self.2 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Value, (i32, i32)) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .model(self.1.clone())
-            .limit(self.2 .0 as u32)
-            .offset(self.2 .0 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Value, &'static str, i32) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .model(self.1.clone())
-            .order(self.2)
-            .limit(self.3 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, Value, &'static str, (i32, i32)) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .model(self.1.clone())
-            .order(self.2)
-            .limit(self.3 .0 as u32)
-            .offset(self.3 .0 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, (&'static str, Args)) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() && !v.is_delete() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .where_(self.1 .0, self.1 .1.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, (&'static str, Args), &'static str) {
+impl<T> IntoRaw for (T, (&'static str, Args), &'static str)
+where
+    T: IntoTable,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .where_(self.1 .0, self.1 .1.clone())
             .order(self.2)
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, (&'static str, Args), i32) {
+impl<T, L> IntoRaw for (T, (&'static str, Args), L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .where_(self.1 .0, self.1 .1.clone())
-            .limit(self.2 as u32)
+            .limit(self.2.clone())
             .into_raw(v)
     }
 }
 
-impl IntoRaw for (&'static str, (&'static str, Args), (i32, i32)) {
+impl<T, L> IntoRaw for (T, (&'static str, Args), &'static str, L)
+where
+    T: IntoTable,
+    L: IntoLimit,
+{
     fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .where_(self.1 .0, self.1 .1.clone())
-            .limit(self.2 .0 as u32)
-            .offset(self.2 .1 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, (&'static str, Args), &'static str, i32) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
+        if !v.is_fetch() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
             .where_(self.1 .0, self.1 .1.clone())
             .order(self.2)
-            .limit(self.3 as u32)
-            .into_raw(v)
-    }
-}
-
-impl IntoRaw for (&'static str, (&'static str, Args), &'static str, (i32, i32)) {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
-        Raw::table(self.0)
-            .where_(self.1 .0, self.1 .1.clone())
-            .order(self.2)
-            .limit(self.3 .0 as u32)
-            .offset(self.3 .1 as u32)
+            .limit(self.3.clone())
             .into_raw(v)
     }
 }
