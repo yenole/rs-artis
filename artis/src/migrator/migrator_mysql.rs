@@ -87,6 +87,9 @@ impl<'a> DriverMigrator<'a> for MysqlMigrator {
             let mut meta = TableMeta::default();
             for v in list.iter() {
                 if meta.name != v.table {
+                    if !meta.name.is_empty() {
+                        metas.push(meta);
+                    }
                     meta = TableMeta::default();
                     meta.name = v.table.clone();
                 }
