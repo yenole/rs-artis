@@ -5,7 +5,7 @@
 
 ```toml
 #artis deps
-artis = {version = "0.2.3", features = ["derive","sqlite"]}
+artis = {version = "0.2.4", features = ["derive","sqlite"]}
 
 #rbatis deps
 rbs = { version = "4.5"}
@@ -24,20 +24,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 #[derive(Debug, Serialize, Deserialize, artis::Artis)]
-pub struct Person {
-    #[artis(PRIMARY, AUTO_INCREMENT)]
-    pub id: Option<u64>,
-    #[artis(type = "VARCHAR", size = 255, INDEX)]
-    pub name: String,
-    #[artis(default = "18", comment = "年龄")]
-    pub age: u32,
-    #[artis(NO_NULL, UNIQUE)]
-    pub id_card: String,
-    pub list:Vec<i32>,
-    pub map:HashMap<i32,i32>,
-}
-
-#[derive(Debug, Serialize, Deserialize, artis::Artis)]
+#[artis(table = "person")]
 pub struct Person {
     #[artis(PRIMARY, AUTO_INCREMENT)]
     pub id: Option<u64>,
@@ -46,6 +33,21 @@ pub struct Person {
     pub age: u32,
 }
 
+#[derive(Debug, Serialize, Deserialize, artis::Artis)]
+pub struct Demo {
+    #[artis(PRIMARY, AUTO_INCREMENT)]
+    pub id: Option<u64>,
+    #[artis(type = "VARCHAR", size = 255, default = "Artis")]
+    pub name: String,
+    #[artis(INDEX)]
+    pub age: i32,
+    #[artis(UNIQUE)]
+    pub id_card: i32,
+    pub list: Vec<i32>,
+    pub list2: Option<Vec<i32>>,
+    pub map: HashMap<i32, i32>,
+    pub map2: Option<HashMap<i32, i32>>,
+}
 
 
 async fn sqlite_migrator() -> Result<()> {
@@ -72,7 +74,7 @@ async fn mysql_migrator() -> Result<()> {
 
 ```rust
 async fn into_delete(rb: &Artis) -> Result<()> {
-    let raw = ("persons", vec!["id = 1"]);
+    let raw = ("persons", rbv!{"id" : 1,});
     let line = rb.delete(&raw).await?;
     println!("delete line: {:?}", line);
 

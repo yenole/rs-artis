@@ -84,6 +84,11 @@ impl IntoArtis for Artis {
         let wait = self.c.exec(raw.into(), args);
         Box::pin(async { Ok(wait.await?.rows_affected) })
     }
+    fn query(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>> {
+        let (raw, args) = i.into_raw(RawType::Fetch);
+        let wait = self.c.query(raw.into(), args);
+        Box::pin(async { Ok(wait.await?) })
+    }
 
     fn exec(&self, raw: &str, args: crate::types::Args) -> BoxFuture<Result<ExecResult>> {
         let wait = self.c.exec(raw.into(), args);

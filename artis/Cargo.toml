@@ -1,6 +1,6 @@
 [package]
 name = "artis"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
@@ -16,7 +16,7 @@ mysql = []
 derive = ["artis-derive"]
 
 [dependencies]
-artis-derive = { version = "0.1.0", optional = true }
+artis-derive = { version = "0.1.1", optional = true, path = "../artis-derive" }
 rbatis = "4.5.30"
 rbs = "4.5.18"
 serde = { version = "1.0.210", features = ["derive"] }

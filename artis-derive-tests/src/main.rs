@@ -7,6 +7,7 @@ use artis::{
 
 #[cfg(feature = "mysql")]
 use artis::migrator::MysqlMigrator;
+
 #[cfg(feature = "mysql")]
 use rbdc_mysql::MysqlDriver;
 
@@ -24,6 +25,7 @@ const LINK: &'static str = "mysql://root:root@localhost:32306/artis";
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, artis::Artis)]
+#[artis(table = "persons")]
 pub struct Person {
     #[artis(PRIMARY, AUTO_INCREMENT)]
     pub id: Option<u64>,
@@ -43,7 +45,9 @@ pub struct Demo {
     #[artis(UNIQUE)]
     pub id_card: i32,
     pub list: Vec<i32>,
+    pub list2: Option<Vec<i32>>,
     pub map: HashMap<i32, i32>,
+    pub map2: Option<HashMap<i32, i32>>,
 }
 
 fn init_logs() {
@@ -69,6 +73,7 @@ async fn acuipe() -> Result<Artis> {
 async fn into_migrator(rb: &Artis) -> Result<()> {
     // let metas = vec![Person::migrator()];
     let metas = meta!(Demo, Person);
+    println!("{:#?}", Demo::migrator());
 
     #[cfg(feature = "mysql")]
     rb.auto_migrate(&MysqlMigrator {}, metas).await?;
@@ -79,7 +84,7 @@ async fn into_migrator(rb: &Artis) -> Result<()> {
 }
 
 async fn into_delete(rb: &Artis) -> Result<()> {
-    let raw = ("persons", vec!["id = 1"]);
+    let raw = ("persons", rbv! {"id" : 1,});
     let line = rb.delete(&raw).await?;
     println!("delete line: {:?}", line);
 

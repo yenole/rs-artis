@@ -31,6 +31,7 @@ fn extrat_type(t: &syn::Type) -> String {
 
 #[derive(Debug, Clone)]
 struct Artis {
+    pub table: String,
     pub name: String,
     pub typ: String,
     pub size: Option<TokenTree>,
@@ -46,6 +47,7 @@ struct Artis {
 impl Default for Artis {
     fn default() -> Self {
         Self {
+            table: "".into(),
             name: "".into(),
             typ: "".into(),
             size: Some(Literal::i32_unsuffixed(0).into()),
@@ -74,6 +76,10 @@ impl From<TokenStream> for Artis {
         while let Some(v) = itr.next() {
             let raw = v.to_string();
             match raw.as_str() {
+                "table" => {
+                    itr.next();
+                    artis.table = extrat_literal(itr.next());
+                }
                 "type" => {
                     itr.next();
                     artis.typ = extrat_literal(itr.next());
@@ -144,7 +150,13 @@ fn extend_feilds(v: &DataStruct) -> Vec<Artis> {
 pub fn device_artis(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let name = input.ident;
-    let table = format!("{}s", name.to_string().to_lowercase());
+    let mut table = format!("{}s", name.to_string().to_lowercase());
+    if let Some(v) = extrat_attrs(input.attrs) {
+        if !v.table.is_empty() {
+            table = v.table
+        }
+    }
+
     let mut inx_quote: Vec<TokenStream> = vec![];
     let mut com_quote: Vec<TokenStream> = vec![];
     let mut primary = String::new();

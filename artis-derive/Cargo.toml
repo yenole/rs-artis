@@ -1,6 +1,6 @@
 [package]
 name = "artis-derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"

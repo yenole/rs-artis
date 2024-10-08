@@ -23,6 +23,8 @@ pub trait IntoArtis: Debug + Send + Sync {
 
     fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>>;
 
+    fn query(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>>;
+
     fn exec(&self, raw: &str, args: Args) -> BoxFuture<Result<ExecResult>>;
 }
 
