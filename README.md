@@ -5,7 +5,7 @@
 
 ```toml
 #artis deps
-artis = {version = "0.2.4", features = ["derive","sqlite"]}
+artis = {version = "0.2.4", features = ["derive","sqlite","mysql","postgres"]}
 
 #rbatis deps
 rbs = { version = "4.5"}
@@ -65,6 +65,16 @@ async fn mysql_migrator() -> Result<()> {
     let rb: Artis = rb.into();
     let metas = meta!(Demo, Person);
     rb.auto_migrate(&MysqlMigrator {}, metas).await?;
+    Ok(())
+}
+
+
+async fn postgres_migrator() -> Result<()> {
+    let rb = rbatis::RBatis::new();
+    let _ = rb.link(PostgresDriver {}, "postgres://postgres:xxxx@locahost:5432/database").await?;
+    let rb: Artis = rb.into();
+    let metas = meta!(Demo, Person);
+    rb.auto_migrate(&PostgresMigrator {}, metas).await?;
     Ok(())
 }
 ```

@@ -1,22 +1,23 @@
 [package]
 name = "artis"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
 description = "Artis is a SQL library"
 repository = "https://github.com/yenole/rs-artis"
-keywords = ["artis", "rbatis", "sql", "sqlite", "mysql"]
+keywords = ["artis", "rbatis", "sql", "sqlite", "mysql","postgres"]
 readme = "../README.md"
 
 [features]
 default = ["derive"]
 sqlite = []
 mysql = []
+postgres = []
 derive = ["artis-derive"]
 
 [dependencies]
-artis-derive = { version = "0.1.1", optional = true, path = "../artis-derive" }
+artis-derive = { version = "0.1.2", optional = true, path = "../artis-derive" }
 rbatis = "4.5.30"
 rbs = "4.5.18"
 serde = { version = "1.0.210", features = ["derive"] }

@@ -62,11 +62,15 @@ impl Default for Artis {
     }
 }
 
-fn extrat_literal(v: Option<TokenTree>) -> String {
+fn extrat_literal(v: Option<TokenTree>, trim: bool) -> String {
     if v.is_none() {
         return "".into();
     }
-    v.unwrap().to_string().trim_matches('"').to_string()
+    if trim {
+        v.unwrap().to_string().trim().trim_matches('"').to_string()
+    } else {
+        v.unwrap().to_string().trim().replace("\"", "'")
+    }
 }
 
 impl From<TokenStream> for Artis {
@@ -78,11 +82,11 @@ impl From<TokenStream> for Artis {
             match raw.as_str() {
                 "table" => {
                     itr.next();
-                    artis.table = extrat_literal(itr.next());
+                    artis.table = extrat_literal(itr.next(), true);
                 }
                 "type" => {
                     itr.next();
-                    artis.typ = extrat_literal(itr.next());
+                    artis.typ = extrat_literal(itr.next(), true);
                 }
                 "size" => {
                     itr.next();
@@ -90,11 +94,11 @@ impl From<TokenStream> for Artis {
                 }
                 "default" => {
                     itr.next();
-                    artis.default = extrat_literal(itr.next());
+                    artis.default = extrat_literal(itr.next(), false);
                 }
                 "comment" => {
                     itr.next();
-                    artis.comment = extrat_literal(itr.next());
+                    artis.comment = extrat_literal(itr.next(), false);
                 }
                 "INDEX" => {
                     artis.index = true;

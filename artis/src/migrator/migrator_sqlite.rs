@@ -12,6 +12,22 @@ const MASTER: &'static str = "sqlite_master";
 
 #[derive(Debug)]
 pub struct SqliteMigrator {}
+impl SqliteMigrator {
+    fn mapping() -> super::Mapping {
+        map! {
+            "i32" : "INTEGER",
+            "i64" : "INTEGER",
+            "u32" : "INTEGER",
+            "u64" : "INTEGER",
+            "f32" : "DOUBLE",
+            "f64" : "DOUBLE",
+            "Vec" : "BLOB",
+            "Map" : "BLOB",
+            "bool" : "BOOLEAN",
+            "String" : "TEXT",
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct SqliteTable {
@@ -72,19 +88,18 @@ impl Into<ColumeMeta> for String {
 }
 
 impl<'a> DriverMigrator<'a> for SqliteMigrator {
-    fn mapping(&self) -> super::Mapping {
-        map! {
-            "i32" : "INTEGER",
-            "i64" : "INTEGER",
-            "u32" : "INTEGER",
-            "u64" : "INTEGER",
-            "f32" : "DOUBLE",
-            "f64" : "DOUBLE",
-            "Vec" : "BLOB",
-            "Map" : "BLOB",
-            "bool" : "BOOLEAN",
-            "String" : "TEXT",
-        }
+    fn mapping(&self, meta: &mut TableMeta) {
+        let dict = SqliteMigrator::mapping();
+        meta.columes.iter_mut().for_each(|v: &mut ColumeMeta| {
+            if !v.colume.starts_with(":") {
+                return;
+            }
+            let key = v.colume[1..].trim();
+            if !dict.contains_key(&key) {
+                panic!("mapping not found: {}", key);
+            }
+            v.colume = dict[key].into();
+        });
     }
 
     fn fetch_tables(&self, rb: &'a Artis) -> BoxFuture<'a, Result<Vec<TableMeta>>> {

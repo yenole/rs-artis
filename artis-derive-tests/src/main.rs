@@ -17,10 +17,18 @@ use rbdc_sqlite::SqliteDriver;
 #[cfg(feature = "sqlite")]
 use artis::migrator::SqliteMigrator;
 
+#[cfg(feature = "postgres")]
+use artis::migrator::PostgresMigrator;
+
+#[cfg(feature = "postgres")]
+use rbdc_pg::PostgresDriver;
+
 #[cfg(feature = "sqlite")]
 const LINK: &'static str = "./dist/sql.db";
 #[cfg(feature = "mysql")]
-const LINK: &'static str = "mysql://root:root@localhost:32306/artis";
+const LINK: &'static str = "mysql://root:root@localhost:3306/artis";
+#[cfg(feature = "postgres")]
+const LINK: &'static str = "postgres://postgres:root@localhost:5432/artis";
 
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +38,7 @@ pub struct Person {
     #[artis(PRIMARY, AUTO_INCREMENT)]
     pub id: Option<u64>,
     pub name: String,
-    #[artis(default = "18")]
+    #[artis(default = 18)]
     pub age: u32,
 }
 
@@ -38,7 +46,7 @@ pub struct Person {
 pub struct Demo {
     #[artis(PRIMARY, AUTO_INCREMENT)]
     pub id: Option<u64>,
-    #[artis(type = "VARCHAR", size = 255, default = "Artis")]
+    #[artis(type = "VARCHAR", size = 253, default = "Tom")]
     pub name: String,
     #[artis(INDEX)]
     pub age: i32,
@@ -65,7 +73,12 @@ async fn acuipe() -> Result<Artis> {
     }
     #[cfg(feature = "mysql")]
     {
-        let _ = rb.link(MysqlDriver {}, LINK2).await?;
+        let _ = rb.link(MysqlDriver {}, LINK).await?;
+    }
+
+    #[cfg(feature = "postgres")]
+    {
+        let _ = rb.link(PostgresDriver {}, LINK).await?;
     }
     Ok(rb.into())
 }
@@ -73,13 +86,15 @@ async fn acuipe() -> Result<Artis> {
 async fn into_migrator(rb: &Artis) -> Result<()> {
     // let metas = vec![Person::migrator()];
     let metas = meta!(Demo, Person);
-    println!("{:#?}", Demo::migrator());
 
     #[cfg(feature = "mysql")]
     rb.auto_migrate(&MysqlMigrator {}, metas).await?;
 
     #[cfg(feature = "sqlite")]
     rb.auto_migrate(&SqliteMigrator {}, metas).await?;
+
+    #[cfg(feature = "postgres")]
+    rb.auto_migrate(&PostgresMigrator {}, metas).await?;
     Ok(())
 }
 

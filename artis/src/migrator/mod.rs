@@ -15,3 +15,9 @@ mod migrator_mysql;
 
 #[cfg(feature = "mysql")]
 pub use migrator_mysql::MysqlMigrator;
+
+#[cfg(feature = "postgres")]
+mod migrator_postgres;
+
+#[cfg(feature = "postgres")]
+pub use migrator_postgres::PostgresMigrator;

@@ -18,6 +18,23 @@ const COLUME_SELECT: &'static str =
 #[derive(Debug)]
 pub struct MysqlMigrator {}
 
+impl MysqlMigrator {
+    fn mapping() -> Mapping {
+        map! {
+            "i32" : "INT",
+            "i64" : "BIGINT",
+            "u32" : "INT",
+            "u64" : "BIGINT",
+            "f32" : "FLOAT",
+            "f64" : "DOUBLE",
+            "Vec" : "JSON",
+            "Map" : "JSON",
+            "bool" : "TINYINT",
+            "String" : "VARCHAR(255)",
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct Schema {
     #[serde(rename = "TABLE_NAME")]
@@ -61,19 +78,18 @@ struct Index {
 }
 
 impl<'a> DriverMigrator<'a> for MysqlMigrator {
-    fn mapping(&self) -> Mapping {
-        map! {
-            "i32" : "INT",
-            "i64" : "BIGINT",
-            "u32" : "INT",
-            "u64" : "BIGINT",
-            "f32" : "FLOAT",
-            "f64" : "DOUBLE",
-            "Vec" : "JSON",
-            "Map" : "JSON",
-            "bool" : "TINYINT",
-            "String" : "VARCHAR(255)",
-        }
+    fn mapping(&self, meta: &mut TableMeta) {
+        let dict = MysqlMigrator::mapping();
+        meta.columes.iter_mut().for_each(|v: &mut ColumeMeta| {
+            if !v.colume.starts_with(":") {
+                return;
+            }
+            let key = v.colume[1..].trim();
+            if !dict.contains_key(&key) {
+                panic!("mapping not found: {}", key);
+            }
+            v.colume = dict[&key].into();
+        })
     }
 
     fn fetch_tables(&self, rb: &'a Artis) -> BoxFuture<'a, Result<Vec<TableMeta>>> {

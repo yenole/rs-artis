@@ -91,7 +91,7 @@ impl Raw {
 }
 
 impl Raw {
-    fn extend_map(v: &Value, args: &mut Args, s: &Columns) -> Columns {
+    fn extend_map(t: RawType, v: &Value, args: &mut Args, s: &Columns) -> Columns {
         if !v.is_map() {
             return vec![];
         }
@@ -101,16 +101,20 @@ impl Raw {
         } else {
             dict.0.keys().map(|v| v.as_string().unwrap()).collect()
         };
-
+        let mut columns = vec![];
         keys.iter().for_each(|k| {
             let key: rbs::Value = k.as_str().into();
+            let mut value = Value::Null;
             if dict.0.contains_key(&key) {
-                args.push(dict[k.as_str()].clone());
-            } else {
-                args.push(Value::Null);
+                value = dict[k.as_str()].clone()
             }
+            if t.is_saving() && value.is_null() {
+                return;
+            }
+            columns.push(k.to_owned());
+            args.push(value);
         });
-        keys
+        columns
     }
 
     fn into_fetch(raw: &mut String, args: &mut Vec<Value>, t: &str, s: &Columns, v: &Value) {
@@ -119,7 +123,7 @@ impl Raw {
             columns = "*".into();
         }
         raw.push_str(&raw!("SELECT {} FROM {}", columns, t));
-        let keys: Vec<_> = Raw::extend_map(v, args, s);
+        let keys: Vec<_> = Raw::extend_map(RawType::Fetch, v, args, s);
         if !keys.is_empty() {
             raw.push_str(&raw!(" WHERE {} = ?", keys.join(" = ? AND ")));
         }
@@ -127,7 +131,7 @@ impl Raw {
 
     fn into_saving(raw: &mut String, args: &mut Vec<Value>, t: &str, s: &Columns, v: &Value) {
         raw.push_str(&raw!("INSERT INTO {}", t));
-        let keys = Raw::extend_map(&v, args, s);
+        let keys = Raw::extend_map(RawType::Saving, &v, args, s);
         if !keys.is_empty() {
             let hold: String = vec!["?"; keys.len()].join(", ");
             raw.push_str(&raw!("({}) VALUES ({})", keys.join(", "), hold));
@@ -136,7 +140,7 @@ impl Raw {
 
     fn into_update(raw: &mut String, args: &mut Vec<Value>, t: &str, s: &Columns, v: &Value) {
         raw.push_str(&raw!("UPDATE {}", t));
-        let keys = Raw::extend_map(v, args, s);
+        let keys = Raw::extend_map(RawType::Update, v, args, s);
         if !keys.is_empty() {
             raw.push_str(&raw!(" SET {} = ?", keys.join(" = ?, ")));
         }
@@ -144,7 +148,7 @@ impl Raw {
 
     fn into_delete(raw: &mut String, args: &mut Vec<Value>, t: &str, s: &Columns, v: &Value) {
         raw.push_str(&raw!("DELETE FROM {}", t));
-        let keys = Raw::extend_map(v, args, s);
+        let keys = Raw::extend_map(RawType::Delete, v, args, s);
         if !keys.is_empty() {
             raw.push_str(&raw!(" WHERE {} = ?", keys.join("= ? AND ")));
         }

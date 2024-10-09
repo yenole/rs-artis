@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["sqlite"]
+default = ["postgres"]
 mysql = ["artis/mysql"]
 sqlite = ["artis/sqlite"]
+postgres = ["artis/postgres"]
 
 
 [dependencies]
@@ -22,3 +23,4 @@ log = "0.4.22"
 dotenv = "0.15.0"
 dotenv_config = "0.1.8"
 env_logger = "0.10.0"
+rbdc-pg = "4.5.16"

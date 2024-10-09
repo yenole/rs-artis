@@ -1,20 +1,17 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::{raw, Artis, BoxFuture, IntoArtis, Result};
+use crate::{Artis, BoxFuture, IntoArtis, Result};
 
-use super::{
-    types::{Adjust, Mapping},
-    ColumeMeta, IndexMeta, TableMeta,
-};
+use super::{types::Adjust, ColumeMeta, IndexMeta, TableMeta};
 
 pub trait ArtisMigrator: Sized {
     fn migrator() -> TableMeta;
 }
 
 pub trait DriverMigrator<'a>: Debug + Send + Sync + 'a {
-    fn mapping(&self) -> Mapping;
+    fn mapping(&self, meta: &mut TableMeta);
     fn create_table(&self, meta: &TableMeta) -> Result<String>;
-    fn colume_raw(&self, t: &TableMeta, t: Adjust, meta: &ColumeMeta) -> Result<Vec<String>>;
+    fn colume_raw(&self, t: &TableMeta, v: Adjust, meta: &ColumeMeta) -> Result<Vec<String>>;
     fn drop_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String>;
     fn create_index(&self, t: &TableMeta, meta: &IndexMeta) -> Result<String>;
     fn fetch_tables(&self, rb: &'a Artis) -> BoxFuture<'a, Result<Vec<TableMeta>>>;
@@ -24,12 +21,6 @@ type AlterIndex = Vec<(Adjust, IndexMeta)>;
 type AlterColume = Vec<(Adjust, ColumeMeta)>;
 
 impl TableMeta {
-    fn mapping(&mut self, dict: &Mapping) {
-        for meta in self.columes.iter_mut() {
-            meta.mapping(dict);
-        }
-    }
-
     fn patch(&self, meta: &TableMeta) -> Result<(AlterColume, AlterIndex)> {
         let mut columes: AlterColume = vec![];
         let dict: HashMap<_, _> = meta.columes.iter().map(|v| (v.name.clone(), v)).collect();
@@ -65,22 +56,6 @@ impl TableMeta {
     }
 }
 
-impl ColumeMeta {
-    pub fn mapping(&mut self, dict: &Mapping) {
-        if !self.colume.starts_with(":") {
-            return;
-        }
-        let key = self.colume.trim_start_matches(":");
-        if !dict.contains_key(key) {
-            panic!("mapping not found: {}", key);
-        }
-        self.colume = dict[key].into();
-        if self.size != 0 {
-            self.colume = raw!("{}({})", self.colume, self.size);
-        }
-    }
-}
-
 impl<'a> Artis {
     pub async fn auto_migrate(
         &'a self,
@@ -89,9 +64,8 @@ impl<'a> Artis {
     ) -> Result<()> {
         let list = m.fetch_tables(self).await?;
         let dict: HashMap<_, _> = list.iter().map(|v| (&v.name, v)).collect();
-        let mapping = m.mapping();
         let mut metas = v.clone();
-        metas.iter_mut().for_each(|v| v.mapping(&mapping));
+        metas.iter_mut().for_each(|v| m.mapping(v));
         for v in metas.iter() {
             if !dict.contains_key(&v.name) {
                 let raw = m.create_table(v)?;

@@ -50,11 +50,12 @@ impl PartialEq for ColumeMeta {
     fn eq(&self, other: &Self) -> bool {
         if self.name != other.name
             || self.nullable != other.nullable
-            || self.default != other.default
+            || self.default.trim_matches('\'') != other.default.trim_matches('\'')
         {
             return false;
         }
-        if self.size != 0 && self.colume != other.colume {
+        let colume = format!("{}({})", self.colume, self.size);
+        if self.size != 0 && colume != other.colume {
             return false;
         }
         other.colume.starts_with(&self.colume)
@@ -64,6 +65,9 @@ impl PartialEq for ColumeMeta {
 impl Display for ColumeMeta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.name, self.colume)?;
+        if self.size != 0 {
+            write!(f, "({})", self.size)?;
+        }
         if !self.nullable {
             write!(f, " {}", "NOT NULL")?;
         }
