@@ -11,13 +11,22 @@ pub fn decode<T: DeserializeOwned>(v: Value) -> crate::Result<T> {
 }
 pub fn decode_i64<T: DeserializeOwned>(v: Value) -> crate::Result<T> {
     if !v.is_array() || v.is_empty() {
-        return Ok(rbs::from_value(rbs::Value::U64(0u64))?);
+        return match rbs::from_value(rbs::Value::U64(0u64)) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.to_string().into()),
+        };
     }
     let v = v.as_array().unwrap().first().unwrap();
     if !v.is_map() || v.is_empty() {
-        return Ok(rbs::from_value(rbs::Value::U64(0u64))?);
+        return match rbs::from_value(rbs::Value::U64(0u64)) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.to_string().into()),
+        };
     }
-    Ok(rbs::from_value_ref(&v[0])?)
+    match rbs::from_value_ref(&v[0]) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(e.to_string().into()),
+    }
 }
 
 pub fn decode_pluck<T: DeserializeOwned>(v: Value, colume: &str) -> crate::Result<T> {
