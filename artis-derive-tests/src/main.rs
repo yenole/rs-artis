@@ -274,6 +274,27 @@ async fn into_raw() -> Result<()> {
     let raw = (Schema::Person, vec!["id"], 1);
     fmt!(raw, Fetch, "SELECT id FROM persons LIMIT 1");
 
+    // (table,select,model)
+    let raw = (Schema::Person, vec!["id"], rbv! {"id":1,"age":19,});
+    fmt!(raw, Saving, "INSERT INTO persons(id) VALUES (?)");
+
+    // (table,select,model,order)
+    let raw = (
+        Schema::Person,
+        vec!["id"],
+        rbv! {"id":1,"age":19,},
+        "id DESC",
+    );
+    fmt!(
+        raw,
+        Fetch,
+        "SELECT id FROM persons WHERE id = ? ORDER BY id DESC"
+    );
+
+    // (table,select,model,colume)
+    let raw = (Schema::Person, vec!["age"], rbv! {"id":1,"age":19,}, "id");
+    fmt!(raw, Update, "UPDATE persons SET age = ? WHERE id = ?");
+
     // (table,select,order)
     let raw = (Schema::Person, vec!["id"], "id DESC");
     fmt!(raw, Fetch, "SELECT id FROM persons ORDER BY id DESC");

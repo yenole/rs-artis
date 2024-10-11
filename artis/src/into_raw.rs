@@ -284,6 +284,42 @@ where
     }
 }
 
+impl<T> IntoRaw for (T, Vec<&'static str>, Value)
+where
+    T: IntoTable,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if v.is_update() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .select(self.1.clone())
+            .model(self.2.clone())
+            .into_raw(v)
+    }
+}
+
+impl<T> IntoRaw for (T, Vec<&'static str>, Value, &'static str)
+where
+    T: IntoTable,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        match v {
+            RawType::Fetch => Raw::table(&self.0.into_table())
+                .select(self.1.clone())
+                .model(self.2.clone())
+                .order(self.3)
+                .into_raw(v),
+            RawType::Update => Raw::table(&self.0.into_table())
+                .select(self.1.clone())
+                .model(self.2.clone())
+                .where_(self.3, vec![])
+                .into_raw(v),
+            _ => panic!("Not supported"),
+        }
+    }
+}
+
 impl<T> IntoRaw for (T, Vec<&'static str>, &'static str)
 where
     T: IntoTable,
