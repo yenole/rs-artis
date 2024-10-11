@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2021"
 description = "Artis is a SQL library"
 repository = "https://github.com/yenole/rs-artis"
-keywords = ["artis", "rbatis", "sql", "sqlite", "mysql","postgres"]
+keywords = ["artis", "rbatis", "sqlite", "mysql", "postgres"]
 readme = "../README.md"
 
 [features]
