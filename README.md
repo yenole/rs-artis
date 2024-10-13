@@ -1,6 +1,16 @@
 [![doc.rs](https://docs.rs/artis/badge.svg)](https://docs.rs/artis/)
 [![GitHub release](https://img.shields.io/github/v/release/yenole/rs-artis)](https://github.com/yenole/rs-artis/releases)
 
+#### TODO
+
+* [x] 支持mysql
+* [x] 支持sqlite
+* [x] 支持postgres
+* [x] 自动更新表列和索引
+* [ ] sqlite 支持修改列
+* [ ] rbatis 改为feature
+
+
 #### 依赖
 
 ```toml
