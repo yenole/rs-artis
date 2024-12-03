@@ -270,6 +270,10 @@ async fn into_raw() -> Result<()> {
     let raw = (Schema::Person, vec!["id"]);
     fmt!(raw, Fetch, "SELECT id FROM persons");
 
+    // (table,select,where)
+    let raw = (Schema::Person, vec!["id"], ("id = ?", vec![rbv!(1)]));
+    fmt!(raw, Fetch, "SELECT id FROM persons WHERE id = ?");
+
     // (table,select,limit)
     let raw = (Schema::Person, vec!["id"], 1);
     fmt!(raw, Fetch, "SELECT id FROM persons LIMIT 1");

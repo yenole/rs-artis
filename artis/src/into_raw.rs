@@ -64,22 +64,22 @@ impl Raw {
         self
     }
 
-    pub fn select(mut self, v: Vec<&'static str>) -> Self {
+    pub fn select(mut self, v: Vec<&str>) -> Self {
         self.inner[1] = Props::Select(v.iter().map(|v| v.to_string()).collect());
         self
     }
 
-    pub fn where_(mut self, v: &'static str, args: Vec<crate::Value>) -> Self {
+    pub fn where_(mut self, v: &str, args: Vec<crate::Value>) -> Self {
         self.inner[2] = Props::Where((v.into(), args));
         self
     }
 
-    pub fn group(mut self, v: &'static str) -> Self {
+    pub fn group(mut self, v: &str) -> Self {
         self.inner[3] = Props::Group(v.into());
         self
     }
 
-    pub fn order(mut self, v: &'static str) -> Self {
+    pub fn order(mut self, v: &str) -> Self {
         self.inner[4] = Props::Order(v.into());
         self
     }
@@ -227,7 +227,7 @@ impl IntoRaw for String {
     }
 }
 
-impl<T> IntoRaw for (T, &'static str)
+impl<T> IntoRaw for (T, &str)
 where
     T: IntoTable,
 {
@@ -254,7 +254,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, &'static str, L)
+impl<T, L> IntoRaw for (T, &str, L)
 where
     T: IntoTable,
     L: IntoLimit,
@@ -270,7 +270,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, Vec<&'static str>)
+impl<T> IntoRaw for (T, Vec<&str>)
 where
     T: IntoTable,
 {
@@ -284,7 +284,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, Vec<&'static str>, Value)
+impl<T> IntoRaw for (T, Vec<&str>, Value)
 where
     T: IntoTable,
 {
@@ -299,7 +299,22 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, Vec<&'static str>, Value, &'static str)
+impl<T> IntoRaw for (T, Vec<&str>, (&str, Vec<Value>))
+where
+    T: IntoTable,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if v.is_update() {
+            panic!("Not supported")
+        }
+        Raw::table(&self.0.into_table())
+            .select(self.1.clone())
+            .where_(self.2 .0, self.2 .1.clone())
+            .into_raw(v)
+    }
+}
+
+impl<T> IntoRaw for (T, Vec<&str>, Value, &str)
 where
     T: IntoTable,
 {
@@ -320,7 +335,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, Vec<&'static str>, &'static str)
+impl<T> IntoRaw for (T, Vec<&str>, &str)
 where
     T: IntoTable,
 {
@@ -335,7 +350,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, Vec<&'static str>, L)
+impl<T, L> IntoRaw for (T, Vec<&str>, L)
 where
     T: IntoTable,
     L: IntoLimit,
@@ -351,7 +366,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, Vec<&'static str>, &'static str, L)
+impl<T, L> IntoRaw for (T, Vec<&str>, &str, L)
 where
     T: IntoTable,
     L: IntoLimit,
@@ -382,7 +397,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, Value, &'static str)
+impl<T> IntoRaw for (T, Value, &str)
 where
     T: IntoTable,
 {
@@ -418,7 +433,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, Value, &'static str, L)
+impl<T, L> IntoRaw for (T, Value, &str, L)
 where
     T: IntoTable,
     L: IntoLimit,
@@ -435,7 +450,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, (&'static str, Args))
+impl<T> IntoRaw for (T, (&str, Args))
 where
     T: IntoTable,
 {
@@ -449,7 +464,7 @@ where
     }
 }
 
-impl<T> IntoRaw for (T, (&'static str, Args), &'static str)
+impl<T> IntoRaw for (T, (&str, Args), &str)
 where
     T: IntoTable,
 {
@@ -464,7 +479,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, (&'static str, Args), L)
+impl<T, L> IntoRaw for (T, (&str, Args), L)
 where
     T: IntoTable,
     L: IntoLimit,
@@ -480,7 +495,7 @@ where
     }
 }
 
-impl<T, L> IntoRaw for (T, (&'static str, Args), &'static str, L)
+impl<T, L> IntoRaw for (T, (&str, Args), &'static str, L)
 where
     T: IntoTable,
     L: IntoLimit,
