@@ -1,5 +1,7 @@
+use rbs::value::map::ValueMap;
+
 use crate::{
-    raw,
+    raw, rbv,
     types::{Args, Columns, RawType},
     Value,
 };
@@ -408,9 +410,34 @@ where
                 .order(self.2)
                 .into_raw(v);
         } else if v.is_update() {
+            if self.2.is_empty() || !self.1.is_map() {
+                panic!("Not supported")
+            }
+            let (map, args) = split_model(self.1.clone(), &vec![self.2]);
+            let raw = format!("{} = ?", self.2);
             return Raw::table(&self.0.into_table())
-                .model(self.1.clone())
-                .where_(self.2, vec![])
+                .model(Value::Map(map))
+                .where_(&raw, args)
+                .into_raw(v);
+        }
+        panic!("Not supported")
+    }
+}
+
+impl<T> IntoRaw for (T, Value, Vec<&str>)
+where
+    T: IntoTable,
+{
+    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+        if v.is_update() {
+            if self.2.is_empty() || !self.1.is_map() {
+                panic!("Not supported")
+            }
+            let (map, args) = split_model(self.1.clone(), &self.2);
+            let raw = format!("{} = ?", self.2.join(" = ? AND "));
+            return Raw::table(&self.0.into_table())
+                .model(Value::Map(map))
+                .where_(&raw, args)
                 .into_raw(v);
         }
         panic!("Not supported")
@@ -510,4 +537,22 @@ where
             .limit(self.3.clone())
             .into_raw(v)
     }
+}
+
+fn split_model(v: Value, column: &Vec<&str>) -> (ValueMap, Vec<Value>) {
+    if !v.is_map() {
+        panic!("Not supported");
+    }
+    let mut map = v.into_map().expect("Not supported");
+    let mut args: Vec<Value> = vec![];
+    for v in column {
+        let key = rbv!(v);
+        if !map.0.contains_key(&key) {
+            args.push(Value::Null);
+            continue;
+        }
+        args.push(map.0.get(&key).unwrap().clone());
+        map.remove(&key);
+    }
+    return (map, args);
 }
