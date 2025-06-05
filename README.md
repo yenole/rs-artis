@@ -273,8 +273,21 @@ async fn into_raw() -> Result<()> {
     fmt!(
         raw,
         Update,
-        "UPDATE persons SET id = ?, name = ? WHERE name = ?"
+        "UPDATE persons SET id = ? WHERE name = ?"
     );
+
+    // (table,mode,vec)
+    let raw = (
+        Schema::Person,
+        rbv! {"id":1,"name":"Tom","age":123},
+        vec!["name", "id"],
+    );
+    fmt!(
+        raw,
+        Update,
+        "UPDATE persons SET age = ? WHERE name = ? AND id = ?"
+    );
+
 
     // (table,model,order,limit)
     let raw = (Schema::Person, rbv! {"id":1,}, "id DESC", 1);
