@@ -48,7 +48,7 @@ macro_rules! map {
 #[macro_export]
 macro_rules! rbv {
     ($v:expr) => {
-        rbs::to_value!($v)
+        rbs::value!($v)
     };
     ($($k:tt: $v:expr),* $(,)?) => {
         rbs::Value::Map(rbs::value_map!($($k:$v ,)*))
@@ -56,7 +56,7 @@ macro_rules! rbv {
 
     ($tt:expr,$($k:tt: $v:expr),* $(,)?) => {
         {
-            let v = rbs::to_value!($tt);
+            let v = rbs::value!($tt);
             let extend = rbs::value_map!($($k:$v ,)*);
             if let rbs::Value::Map(mut m) = v {
                 extend.into_iter().for_each(|(k, v)| {m.insert(k, v);});

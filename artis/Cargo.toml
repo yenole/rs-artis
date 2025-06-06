@@ -1,6 +1,6 @@
 [package]
 name = "artis"
-version = "0.2.9"
+version = "0.2.10"
 authors = ["Yoruno xusir92@gamil.com"]
 license = "MIT"
 edition = "2021"
@@ -18,6 +18,6 @@ derive = ["artis-derive"]
 
 [dependencies]
 artis-derive = { version = "0.1.2", optional = true, path = "../artis-derive" }
-rbatis = "4.5.30"
-rbs = "4.5.18"
+rbatis = "4.6.7"
+rbs = "4.6.0"
 serde = { version = "1.0.210", features = ["derive"] }

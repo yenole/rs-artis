@@ -13,12 +13,12 @@ postgres = ["artis/postgres"]
 [dependencies]
 artis = { path = "../artis", features = ["mysql", "derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
-rbatis = "4.5.21"
-rbdc = "4.5.30"
-rbs = "4.5.18"
+rbatis = "4.6.7"
+rbdc = "4.6.0"
 serde = { version = "1.0.210", features = ["derive"] }
-rbdc-sqlite = "4.5.5"
-rbdc-mysql = "4.5.11"
+rbs = "4.6.0"
+rbdc-sqlite = "4.6.0"
+rbdc-mysql = "4.6.0"
 log = "0.4.22"
 dotenv = "0.15.0"
 dotenv_config = "0.1.8"
