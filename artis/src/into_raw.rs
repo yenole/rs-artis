@@ -113,8 +113,21 @@ impl Raw {
             if t.is_saving() && value.is_null() {
                 return;
             }
-            columns.push(k.to_owned());
-            args.push(value);
+            if t.is_saving() {
+                columns.push(k.to_owned());
+                args.push(value);
+            } else if let Value::Array(list) = value {
+                if list.len() == 0 || list.len() > 2 || !list[0].is_str() {
+                    return;
+                }
+                columns.push(format!("{} {}", k, list[0].as_str().unwrap_or_default()));
+                if list.len() == 2 {
+                    args.push(list[1].clone());
+                }
+            } else {
+                columns.push(format!("{} = ?", k));
+                args.push(value);
+            }
         });
         columns
     }
@@ -127,7 +140,7 @@ impl Raw {
         raw.push_str(&raw!("SELECT {} FROM {}", columns, t));
         let keys: Vec<_> = Raw::extend_map(RawType::Fetch, v, args, s);
         if !keys.is_empty() {
-            raw.push_str(&raw!(" WHERE {} = ?", keys.join(" = ? AND ")));
+            raw.push_str(&raw!(" WHERE {}", keys.join(" AND ")));
         }
     }
 
@@ -144,7 +157,7 @@ impl Raw {
         raw.push_str(&raw!("UPDATE {}", t));
         let keys = Raw::extend_map(RawType::Update, v, args, s);
         if !keys.is_empty() {
-            raw.push_str(&raw!(" SET {} = ?", keys.join(" = ?, ")));
+            raw.push_str(&raw!(" SET {}", keys.join(" , ")));
         }
     }
 
@@ -152,7 +165,7 @@ impl Raw {
         raw.push_str(&raw!("DELETE FROM {}", t));
         let keys = Raw::extend_map(RawType::Delete, v, args, s);
         if !keys.is_empty() {
-            raw.push_str(&raw!(" WHERE {} = ?", keys.join("= ? AND ")));
+            raw.push_str(&raw!(" WHERE {}", keys.join(" AND ")));
         }
     }
 }
