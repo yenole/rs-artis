@@ -1,25 +1,28 @@
-use std::{future::Future, sync::Arc};
+use std::{fmt::Debug, future::Future, sync::Arc};
 
 use serde::de::DeserializeOwned;
 
 use crate::{
     decode::{decode, decode_pluck},
-    types::Args,
-    BoxFuture, ExecResult, Executor, IntoArtis, IntoRaw, RawType, Result, Value,
+    types::{Args, IntoChunk},
+    BoxFuture, ExecResult, IntoArtis, IntoRaw, RawType, Result, Value,
 };
 
-pub trait TxExecutor: Executor {
-    fn commit(&self) -> BoxFuture<Result<()>>;
-    fn rollback(&self) -> BoxFuture<Result<()>>;
+pub trait ArtisTxExecutor: Debug + Send + Sync {
+    fn query(&self, raw: String, args: Args) -> BoxFuture<'_, Result<Value>>;
+    fn exec(&self, raw: String, args: Args) -> BoxFuture<'_, Result<ExecResult>>;
+
+    fn commit(&self) -> BoxFuture<'_, Result<()>>;
+    fn rollback(&self) -> BoxFuture<'_, Result<()>>;
 }
 
 #[derive(Debug)]
 pub struct ArtisTx {
-    c: Arc<Box<dyn TxExecutor>>,
+    c: Arc<Box<dyn ArtisTxExecutor>>,
 }
 
-impl From<Box<dyn TxExecutor>> for ArtisTx {
-    fn from(value: Box<dyn TxExecutor>) -> Self {
+impl From<Box<dyn ArtisTxExecutor>> for ArtisTx {
+    fn from(value: Box<dyn ArtisTxExecutor>) -> Self {
         Self { c: Arc::new(value) }
     }
 }
@@ -37,51 +40,48 @@ impl ArtisTx {
     }
 }
 
+impl IntoChunk for ArtisTx {
+    async fn chunk<F, T>(&self, _: F) -> Result<()>
+    where
+        F: FnOnce(Arc<ArtisTx>) -> T,
+        T: Future<Output = Result<()>>,
+    {
+        Err("Not support".into())
+    }
+}
+
 impl IntoArtis for ArtisTx {
-    fn fetch<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
-    where
-        T: DeserializeOwned,
-    {
+    async fn fetch<T: DeserializeOwned>(&self, i: &dyn IntoRaw) -> Result<T> {
         let (raw, args) = i.into_raw(RawType::Fetch);
-        let wait = self.c.query(raw.into(), args);
-        Box::pin(async { Ok(decode(wait.await?)?) })
+        Ok(decode(self.c.query(raw, args).await?)?)
     }
 
-    fn pluck<T>(&self, i: &dyn IntoRaw, colume: &'static str) -> BoxFuture<Result<T>>
-    where
-        T: DeserializeOwned,
-    {
+    async fn pluck<T: DeserializeOwned>(&self, i: &dyn IntoRaw, colume: &'static str) -> Result<T> {
         let (raw, args) = i.into_raw(RawType::Fetch);
-        let wait = self.c.query(raw.into(), args);
-        Box::pin(async { Ok(decode_pluck(wait.await?, colume)?) })
+        Ok(decode_pluck(self.c.query(raw, args).await?, colume)?)
     }
 
-    fn saving(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>> {
+    async fn saving(&self, i: &dyn IntoRaw) -> Result<Value> {
         let (raw, args) = i.into_raw(RawType::Saving);
-        let wait = self.c.exec(raw.into(), args);
-        Box::pin(async { Ok(wait.await?.last_insert_id) })
+        Ok(self.c.exec(raw, args).await?.last_insert_id)
     }
 
-    fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
+    async fn update(&self, i: &dyn IntoRaw) -> Result<u64> {
         let (raw, args) = i.into_raw(RawType::Update);
-        let wait = self.c.exec(raw.into(), args);
-        Box::pin(async { Ok(wait.await?.rows_affected) })
+        Ok(self.c.exec(raw, args).await?.rows_affected)
     }
 
-    fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>> {
+    async fn delete(&self, i: &dyn IntoRaw) -> Result<u64> {
         let (raw, args) = i.into_raw(RawType::Delete);
-        let wait = self.c.exec(raw.into(), args);
-        Box::pin(async { Ok(wait.await?.rows_affected) })
+        Ok(self.c.exec(raw, args).await?.rows_affected)
     }
 
-    fn query(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>> {
+    async fn query(&self, i: &dyn IntoRaw) -> Result<Value> {
         let (raw, args) = i.into_raw(RawType::Delete);
-        let wait = self.c.query(raw.into(), args);
-        Box::pin(async { Ok(wait.await?) })
+        Ok(self.c.query(raw, args).await?)
     }
 
-    fn exec(&self, raw: &str, args: Args) -> BoxFuture<Result<ExecResult>> {
-        let wait = self.c.exec(raw.into(), args);
-        Box::pin(async { Ok(wait.await?) })
+    async fn exec(&self, raw: &str, args: Args) -> Result<ExecResult> {
+        Ok(self.c.exec(raw.into(), args).await?)
     }
 }

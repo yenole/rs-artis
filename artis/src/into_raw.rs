@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rbs::value::map::ValueMap;
 
 use crate::{
@@ -6,11 +8,11 @@ use crate::{
     Value,
 };
 
-pub trait IntoRaw {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>);
+pub trait IntoRaw: Sync {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>);
 }
 
-pub trait IntoTable {
+pub trait IntoTable: Sync {
     fn into_table(&self) -> String;
 }
 
@@ -20,7 +22,7 @@ impl IntoTable for &'static str {
     }
 }
 
-pub trait IntoLimit: Clone {
+pub trait IntoLimit: Clone + Sync {
     fn into_limit(&self) -> (u32, u32);
 }
 
@@ -171,7 +173,7 @@ impl Raw {
 }
 
 impl IntoRaw for Raw {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         let table = &self.table;
         let mut raw = String::new();
         let mut args: Vec<crate::Value> = vec![];
@@ -229,12 +231,12 @@ impl IntoRaw for Raw {
             }
             _ => {}
         });
-        (Box::leak(raw.into_boxed_str()), args)
+        (raw, args)
     }
 }
 
 impl IntoRaw for String {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() && !v.is_delete() {
             panic!("Not supported")
         }
@@ -242,11 +244,17 @@ impl IntoRaw for String {
     }
 }
 
+impl<T: AsRef<str> + Display + Sync> IntoRaw for (T, Vec<Value>) {
+    fn into_raw(&self, _: RawType) -> (String, Vec<crate::Value>) {
+        (self.0.to_string(), self.1.clone())
+    }
+}
+
 impl<T> IntoRaw for (T, &str)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -259,7 +267,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -274,7 +282,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -289,7 +297,7 @@ impl<T> IntoRaw for (T, Vec<&str>)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -303,7 +311,7 @@ impl<T> IntoRaw for (T, Vec<&str>, Value)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if v.is_update() {
             panic!("Not supported")
         }
@@ -318,7 +326,7 @@ impl<T> IntoRaw for (T, Vec<&str>, (&str, Vec<Value>))
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if v.is_update() {
             panic!("Not supported")
         }
@@ -333,7 +341,7 @@ impl<T> IntoRaw for (T, Vec<&str>, Value, &str)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         match v {
             RawType::Fetch => Raw::table(&self.0.into_table())
                 .select(self.1.clone())
@@ -354,7 +362,7 @@ impl<T> IntoRaw for (T, Vec<&str>, &str)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -370,7 +378,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -386,7 +394,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -402,7 +410,7 @@ impl<T> IntoRaw for (T, Value)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if v.is_update() {
             panic!("Not supported")
         }
@@ -416,7 +424,7 @@ impl<T> IntoRaw for (T, Value, &str)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if v.is_fetch() {
             return Raw::table(&self.0.into_table())
                 .model(self.1.clone())
@@ -441,7 +449,7 @@ impl<T> IntoRaw for (T, Value, Vec<&str>)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if v.is_update() {
             if self.2.is_empty() || !self.1.is_map() {
                 panic!("Not supported")
@@ -462,7 +470,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -478,7 +486,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -494,7 +502,7 @@ impl<T> IntoRaw for (T, (&str, Args))
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() && !v.is_delete() {
             panic!("Not supported")
         }
@@ -508,7 +516,7 @@ impl<T> IntoRaw for (T, (&str, Args), &str)
 where
     T: IntoTable,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -524,7 +532,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }
@@ -540,7 +548,7 @@ where
     T: IntoTable,
     L: IntoLimit,
 {
-    fn into_raw(&self, v: RawType) -> (&'static str, Vec<crate::Value>) {
+    fn into_raw(&self, v: RawType) -> (String, Vec<crate::Value>) {
         if !v.is_fetch() {
             panic!("Not supported")
         }

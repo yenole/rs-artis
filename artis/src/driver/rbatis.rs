@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rbatis::{rbatis, RBatis};
 
-use crate::{Artis, ArtisExecutor, BoxFuture, ExecResult, Executor, Result, TxExecutor, Value};
+use crate::{Artis, ArtisExecutor, BoxFuture, ExecResult, Result, Value};
 
 #[derive(Debug)]
 pub struct InnerRBatis {
@@ -22,29 +22,33 @@ impl From<RBatis> for crate::Artis {
     }
 }
 
-impl ArtisExecutor for InnerRBatis {}
-
-impl Executor for InnerRBatis {
-    fn query(&self, raw: String, args: Vec<Value>) -> BoxFuture<Result<Value>> {
-        let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.query(&raw, args).await?) })
+impl ArtisExecutor for InnerRBatis {
+    fn query(&self, raw: String, args: crate::types::Args) -> BoxFuture<'_, Result<Value>> {
+        Box::pin(async move {
+            #[cfg(feature = "log")]
+            let elapsed = crate::unix::Elapsed::default();
+            let rst = self.rb.query(&raw, args).await?;
+            #[cfg(feature = "log")]
+            elapsed.finish(&format!("{}", raw))?;
+            Ok(rst)
+        })
     }
 
-    fn exec(&self, raw: String, values: Vec<Value>) -> BoxFuture<Result<ExecResult>> {
-        let rb = Arc::clone(&self.rb);
+    fn exec(&self, raw: String, args: crate::types::Args) -> BoxFuture<'_, Result<ExecResult>> {
         Box::pin(async move {
-            let rst = rb.exec(&raw, values).await?;
+            #[cfg(feature = "log")]
+            let elapsed = crate::unix::Elapsed::default();
+            let rst = self.rb.exec(&raw, args).await?;
+            #[cfg(feature = "log")]
+            elapsed.finish(&format!("{}", raw))?;
             Ok(ExecResult {
                 rows_affected: rst.rows_affected,
                 last_insert_id: rst.last_insert_id,
             })
         })
     }
-}
 
-impl TxExecutor for InnerRBatis {
-    fn begin(&self) -> BoxFuture<Result<crate::ArtisTx>> {
-        let rb = Arc::clone(&self.rb);
-        Box::pin(async move { Ok(rb.acquire_begin().await?.into()) })
+    fn begin(&self) -> BoxFuture<'_, Result<crate::ArtisTx>> {
+        Box::pin(async move { Ok(self.rb.acquire_begin().await?.into()) })
     }
 }

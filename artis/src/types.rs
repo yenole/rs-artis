@@ -1,31 +1,38 @@
-use std::{fmt::Debug, future::Future};
+use std::{fmt::Debug, future::Future, sync::Arc};
 
 use serde::de::DeserializeOwned;
 
-use crate::{IntoRaw, Result, Value};
+use crate::{ArtisTx, IntoRaw, Result, Value};
 
 pub type Args = Vec<crate::Value>;
 pub type Columns = Vec<String>;
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-pub trait IntoArtis: Debug + Send + Sync {
-    fn fetch<T>(&self, i: &dyn IntoRaw) -> BoxFuture<Result<T>>
+pub trait IntoChunk: Send + Sync {
+    fn chunk<F, T>(&self, func: F) -> impl Future<Output = Result<()>>
     where
-        T: DeserializeOwned;
+        F: FnOnce(Arc<ArtisTx>) -> T,
+        T: Future<Output = Result<()>>;
+}
 
-    fn pluck<T>(&self, i: &dyn IntoRaw, colume: &'static str) -> BoxFuture<Result<T>>
-    where
-        T: DeserializeOwned;
+pub trait IntoArtis: Send + Sync {
+    fn fetch<T: DeserializeOwned>(&self, i: &dyn IntoRaw) -> impl Future<Output = Result<T>>;
 
-    fn saving(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>>;
+    fn pluck<T: DeserializeOwned>(
+        &self,
+        i: &dyn IntoRaw,
+        colume: &'static str,
+    ) -> impl Future<Output = Result<T>>;
 
-    fn update(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>>;
+    fn saving(&self, i: &dyn IntoRaw) -> impl Future<Output = Result<Value>>;
 
-    fn delete(&self, i: &dyn IntoRaw) -> BoxFuture<Result<u64>>;
+    fn update(&self, i: &dyn IntoRaw) -> impl Future<Output = Result<u64>>;
 
-    fn query(&self, i: &dyn IntoRaw) -> BoxFuture<Result<Value>>;
+    fn delete(&self, i: &dyn IntoRaw) -> impl Future<Output = Result<u64>>;
 
-    fn exec(&self, raw: &str, args: Args) -> BoxFuture<Result<ExecResult>>;
+    fn query(&self, i: &dyn IntoRaw) -> impl Future<Output = Result<Value>>;
+
+    fn exec(&self, raw: &str, args: Args) -> impl Future<Output = Result<ExecResult>>;
 }
 
 #[derive(Debug)]

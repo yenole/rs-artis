@@ -8,12 +8,15 @@ mod types;
 pub mod driver;
 pub mod migrator;
 
-pub use artis::{Artis, ArtisExecutor, Executor, TxExecutor};
-pub use artis_tx::ArtisTx;
+#[cfg(feature = "log")]
+pub mod unix;
+
+pub use artis::{Artis, ArtisExecutor};
+pub use artis_tx::{ArtisTx, ArtisTxExecutor};
 pub use driver::Value;
 pub use error::Error;
 pub use into_raw::{IntoLimit, IntoRaw, IntoTable, Raw};
-pub use types::{BoxFuture, ExecResult, IntoArtis, RawType};
+pub use types::{BoxFuture, ExecResult, IntoArtis, IntoChunk, RawType};
 
 #[cfg(feature = "derive")]
 pub use artis_derive::Artis;
