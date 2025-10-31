@@ -9,10 +9,10 @@ pub type Columns = Vec<String>;
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub trait IntoChunk: Send + Sync {
-    fn chunk<F, T>(&self, func: F) -> impl Future<Output = Result<()>>
+    fn chunk<F, T, R>(&self, func: F) -> impl Future<Output = Result<R>>
     where
         F: FnOnce(Arc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>>;
+        T: Future<Output = Result<R>>;
 }
 
 pub trait IntoArtis: Send + Sync {

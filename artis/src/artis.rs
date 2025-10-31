@@ -34,21 +34,21 @@ impl Artis {
         Ok(self.c.begin().await?)
     }
 
-    pub async fn chunk<F, T>(&self, func: F) -> Result<()>
+    pub async fn chunk<F, T, R>(&self, func: F) -> Result<R>
     where
         F: FnOnce(Arc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>>,
+        T: Future<Output = Result<R>>,
     {
         let rb = Arc::new(self.c.begin().await?);
-        rb.chunk(func(Arc::clone(&rb))).await
+        Ok(rb.chunk(func(Arc::clone(&rb))).await?)
     }
 }
 
 impl IntoChunk for Artis {
-    async fn chunk<F, T>(&self, func: F) -> Result<()>
+    async fn chunk<F, T, R>(&self, func: F) -> Result<R>
     where
         F: FnOnce(Arc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>>,
+        T: Future<Output = Result<R>>,
     {
         Ok(self.chunk(func).await?)
     }

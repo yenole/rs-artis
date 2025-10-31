@@ -28,23 +28,28 @@ impl From<Box<dyn ArtisTxExecutor>> for ArtisTx {
 }
 
 impl ArtisTx {
-    pub async fn chunk<T>(&self, func: T) -> Result<()>
+    pub async fn chunk<T, R>(&self, func: T) -> Result<R>
     where
-        T: Future<Output = Result<()>>,
+        T: Future<Output = Result<R>>,
     {
-        if let Err(v) = func.await {
-            self.c.rollback().await?;
-            return Err(v);
+        match func.await {
+            Ok(r) => {
+                self.c.commit().await?;
+                Ok(r)
+            }
+            Err(e) => {
+                self.c.rollback().await?;
+                Err(e)
+            }
         }
-        self.c.commit().await
     }
 }
 
 impl IntoChunk for ArtisTx {
-    async fn chunk<F, T>(&self, _: F) -> Result<()>
+    async fn chunk<F, T, R>(&self, _: F) -> Result<R>
     where
         F: FnOnce(Arc<ArtisTx>) -> T,
-        T: Future<Output = Result<()>>,
+        T: Future<Output = Result<R>>,
     {
         Err("Not support".into())
     }
