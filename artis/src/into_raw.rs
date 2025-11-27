@@ -16,6 +16,12 @@ pub trait IntoTable: Sync {
     fn into_table(&self) -> String;
 }
 
+impl IntoTable for String {
+    fn into_table(&self) -> String {
+        self.to_owned()
+    }
+}
+
 impl IntoTable for &'static str {
     fn into_table(&self) -> String {
         self.to_string()
