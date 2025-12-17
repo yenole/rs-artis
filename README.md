@@ -18,8 +18,8 @@
 artis = {version = "0.2.4", features = ["derive","sqlite","mysql","postgres"]}
 
 #rbatis deps
-rbs = { version = "4.5"}
-rbatis = { version = "4.5"}
+rbs = { version = "4.6.2"}
+rbatis = { version = "4.6.13"}
 rbdc-sqlite = { version = "4.5" }
 #rbdc-mysql={version="4.5"}
 #rbdc-pg={version="4.5"}

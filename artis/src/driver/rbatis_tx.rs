@@ -34,10 +34,10 @@ impl ArtisTxExecutor for InnerRBatisTx {
     }
 
     fn commit(&self) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move { Ok(self.rb.conn.lock().await.commit().await?) })
+        Box::pin(async move { Ok(self.rb.conn_executor.commit().await?) })
     }
 
     fn rollback(&self) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move { Ok(self.rb.conn.lock().await.rollback().await?) })
+        Box::pin(async move { Ok(self.rb.conn_executor.rollback().await?) })
     }
 }
