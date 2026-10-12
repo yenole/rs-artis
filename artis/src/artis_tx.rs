@@ -16,7 +16,7 @@ pub trait ArtisTxExecutor: Debug + Send + Sync {
     fn rollback(&self) -> BoxFuture<'_, Result<()>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct ArtisTx {
     c: Arc<Box<dyn ArtisTxExecutor>>,
 }
